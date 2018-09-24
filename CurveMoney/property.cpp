@@ -16,11 +16,11 @@
 #include <glog/logging.h>
 #include <boost/thread/recursive_mutex.hpp>
 using namespace std;
+extern vector<MarketData*> malist;
 extern HoldPositionInfo userHoldPst;//not real hold position info
 extern list<WaitForCloseInfo*> allTradeList;//before one normal
 extern list<WaitForCloseInfo*> longReverseList;//before one normal
 extern list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
-extern Strategy techCls;
 extern unordered_map<string, HoldPositionInfo*> reversePosition;
 /*****************************marketdata*/
 //gap list map
@@ -2895,17 +2895,7 @@ void processNormalHowManyHoldsCanBeClose(OrderFieldInfo *pOrder,string type) {
     }
 
 }
-int processTradeNew(TradeFieldInfo *pTrade) {
-    string direction = boost::lexical_cast<string>(pTrade->Direction);
-    string offsetflag = boost::lexical_cast<string>(pTrade->OffsetFlag);
-    double price = pTrade->Price;
-    int vol = pTrade->Volume;
-    double mkprice = 0;
-    if (direction == "0") {//买开仓
 
-    }
-    return 1;
-}
 // 获取系统的当前时间，单位微秒(us)
 int64_t GetSysTimeMicros()
 {
@@ -5505,134 +5495,7 @@ string num2str(double i)
         ss<<i;
         return ss.str();
 }
-void computeDualTrustPara(double lastPrice){
-    //max(max-close,close-min)
-    double range=max(techCls.trueKData15S->highPrice-techCls.trueKData15S->closePrice,techCls.trueKData15S->closePrice-techCls.trueKData15S->lowPrice);
-    range=0;
-    techCls.limit[0]=lastPrice-techCls.K2*range;
-    techCls.limit[1]=lastPrice+techCls.K1*range;
-    LOG(INFO) << "Init dual trust parameters.range="+num2str(range)+",low limit="+num2str(techCls.limit[0])+",up limit="+num2str(techCls.limit[1]);
-}
 
-void initOverTickNums(TechMetric* tm,string insComKey){
-    //组合持仓开平参数设置
-    if (insComKey == "cu1802-cu1803") {
-        tm->overMAGapTickNums = 1;
-        tm->downMAGapTickNums = 1;
-    } else if (insComKey == "pp1801-pp1805") {
-        tm->overMAGapTickNums = 5.5;
-        tm->downMAGapTickNums = 5.5;
-    } else if (insComKey == "ru1805-ru1809") {
-        tm->overMAGapTickNums = 1;
-        tm->downMAGapTickNums = 1;
-    } else if (insComKey == "rb1801-rb1805") {
-        tm->overMAGapTickNums = 1;
-        tm->downMAGapTickNums = 1;
-    } else if (insComKey == "i1801-i1805") {
-        tm->overMAGapTickNums = 4;
-        tm->downMAGapTickNums = 4;
-    } else if (insComKey == "MA801-MA805") {
-        tm->overMAGapTickNums = 4.3;
-        tm->downMAGapTickNums = 4.3;
-    } else if (insComKey == "hc1801-hc1805") {
-        tm->overMAGapTickNums = 3;
-        tm->downMAGapTickNums = 3.3;
-    } else if (insComKey == "ni1805-ni1809") {
-        tm->overMAGapTickNums = 1;
-        tm->downMAGapTickNums = 1;
-    } else if (insComKey == "jm1801-jm1805") {
-        tm->overMAGapTickNums = 3.8;
-        tm->downMAGapTickNums = 3.8;
-    }else if (insComKey == "TA801-TA805") {
-        tm->overMAGapTickNums = 3;
-        tm->downMAGapTickNums = 3;
-    }else if (insComKey == "CF801-CF805") {
-        tm->overMAGapTickNums = 1.8;
-        tm->downMAGapTickNums = 1.8;
-    }else if (insComKey == "m1801-m1805") {
-        tm->overMAGapTickNums = 1.5;
-        tm->downMAGapTickNums = 1.5;
-    }else if (insComKey == "j1801-j1805") {
-        tm->overMAGapTickNums = 5.4;
-        tm->downMAGapTickNums = 5.5;
-    }
-}
-void initSunOrShadowLine(string direction){
-    //init shadow and sun line
-    if(techCls.trueKData15S->closePrice > techCls.trueKData15S->openPrice){
-        techCls.firstOpenKLineType="1";
-        LOG(INFO) << "this 15s k line is a sun line!closePrice="+boost::lexical_cast<string>(techCls.trueKData15S->closePrice)+
-                      ",openPrice="+boost::lexical_cast<string>(techCls.trueKData15S->openPrice);
-    }else if(techCls.trueKData15S->closePrice < techCls.trueKData15S->openPrice){
-        techCls.firstOpenKLineType="2";
-        LOG(INFO) << "this 15s k line is a shadow line!closePrice="+boost::lexical_cast<string>(techCls.trueKData15S->closePrice)+
-                      ",openPrice="+boost::lexical_cast<string>(techCls.trueKData15S->openPrice);
-    }else{
-        if(direction=="0"){
-            techCls.firstOpenKLineType="1";
-        }else{
-            techCls.firstOpenKLineType="2";
-        }
-        LOG(INFO) << "this 15s k line is a flat line!closePrice="+boost::lexical_cast<string>(techCls.trueKData15S->closePrice)+
-                      ",openPrice="+boost::lexical_cast<string>(techCls.trueKData15S->openPrice);
-    }
-}
-//判断加仓是否止盈出局,base on hold position hold cost.
-bool stopProfit(string direction,double lastPrice,string instrumentID){
-    /*HoldPositionInfo* tmpinfo;
-    unordered_map<string, HoldPositionInfo*>::iterator it=reversePosition.find(instrumentID);
-    if(it == reversePosition.end()){
-        LOG(INFO)<<"can't find instrumentID="+instrumentID+" reverse position.";
-        return false;
-    }else{
-        tmpinfo= it->second;
-    }*/
-    double tickPrice=getPriceTick(instrumentID);
-    if(direction=="0"){//多头逆向加仓
-        if((lastPrice-userHoldPst.longHoldAvgPrice)>=techCls.lrsptn*tickPrice){
-            LOG(INFO)<<"lastPrice="+boost::lexical_cast<string>(lastPrice)
-                        +"-longHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)
-                        +">="+boost::lexical_cast<string>(techCls.lrsptn*tickPrice);
-            OrderInfo orderInfo;
-            if(existUntradeOrder("2001",&orderInfo)){
-                LOG(INFO)<<"There are untrade order for long reverse stop profit,not process.";
-                return true;
-            }else{
-                LOG(INFO)<<"多头逆向止盈出局,下平仓单";
-                userHoldPst.allPstClean="1";
-                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                addinfo->openStgType="2001";
-                addNewOrderTrade(instrumentID,"1","1",lastPrice,userHoldPst.longTotalPosition,"0",addinfo);
-                return true;
-            }
-        }else{
-            return false;
-        }
-    }else if(direction=="1"){//空头逆向加仓
-        if((userHoldPst.shortHoldAvgPrice-lastPrice)>=techCls.srsptn*tickPrice){
-            LOG(INFO)<<"shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice)
-                        +"-lastPrice="+boost::lexical_cast<string>(lastPrice)
-                        +">="+boost::lexical_cast<string>(techCls.srsptn*tickPrice);
-            OrderInfo orderInfo;
-            if(existUntradeOrder("1001",&orderInfo)){
-                LOG(INFO)<<"There are untrade order for short reverse stop profit,not process.";
-                return true;
-            }else{
-                LOG(INFO)<<"空头逆向止盈出局,下平仓单";
-                userHoldPst.allPstClean="1";
-                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                addinfo->openStgType="1001";
-                addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                return true;
-            }
-        }else{
-            return false;
-        }
-    }else{
-        LOG(ERROR)<<"错误的加仓类型,direction="+direction;
-        return false;
-    }
-}
 void processOtherOpen(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList){
     bool thingFound = false;
     WaitForCloseInfo* wfcInfo;
@@ -5750,27 +5613,15 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList){
     }
 
 }
-void coverYourAss(){
-    userHoldPst.allPstClean="2";
-    LOG(INFO)<<"All long position has been cleaned.do something of reseting.";
-    techCls.priceStatus="0";
-    techCls.stgStatus="0";
-    techCls.minPrice=0;
-    techCls.maxPrice=0;
-    techCls.firstOpenKLineType="0";
-    Strategy::Kdata tmp=techCls.KData_15s.back();
-    techCls.KData_15s.clear();
-    techCls.KData_15s.push_back(tmp);
-    LOG(INFO)<<"current k 15s line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
-}
-
-void resetK15sData(){
-    if(userHoldPst.allPstClean=="2"){
-        techCls.beginK15s = false;
-        techCls.KData_15s.clear();
-    }else if(userHoldPst.longTotalPosition==0&&userHoldPst.shortTotalPosition==0){
-        techCls.beginK15s = false;
-        techCls.KData_15s.clear();
+double getLastPrice(string instrumentID){
+    double lastPrice = 0;
+    for(vector<MarketData*>::reverse_iterator it=malist.rbegin();it!=malist.rend();it++){
+        MarketData* md = *it;
+        if(md->instrumentID==instrumentID){
+            lastPrice = md->lastPrice;
+            it = vector<MarketData*>::reverse_iterator(malist.erase((++it).base()));
+            return lastPrice;
+        }
     }
-
 }
+

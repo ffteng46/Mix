@@ -1,6 +1,6 @@
 #ifndef ARTICLE_PRICE_GLOBAL_H
 #define ARTICLE_PRICE_GLOBAL_H
-
+/*
 #include <QtCore/qglobal.h>
 
 #if defined(ARTICLE_PRICE_LIBRARY)
@@ -8,5 +8,5 @@
 #else
 #  define ARTICLE_PRICESHARED_EXPORT Q_DECL_IMPORT
 #endif
-
+*/
 #endif // ARTICLE_PRICE_GLOBAL_H

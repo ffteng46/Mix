@@ -27,7 +27,7 @@
 #include <boost/locale.hpp>
 #include "EESTraderDemo.h"
 #include "EESQuoteDefine.h"
-#include "Strategy.h"
+#include "../article_price/article_price.h"
 #ifdef WIN32
 #include <windows.h>
 #else
@@ -184,7 +184,52 @@ public:
     unsigned int marketToken;
     unsigned int clientOrderToken;
 };
+class Option{
+public:
+    double U;
+    double K;
+    double r;
+    double T;
+    double b;
+    double sig;
+    double optPrice;
+    double delta;
+    double gamma;
+    double theta;
+    double vega;
+    double volume;
+    string optype;
+    string instrumentID;
+};
 
+class UserHedgeData{
+public:
+    vector<OptionGreeks*> realOptionList;
+    vector<OptionGreeks*> simOptionList;
+    EuropeanOption futureOption;
+    double realCallDelta = 0;
+    double realPutDelta = 0;
+    double simCallDelta = 0;
+    double simPutDelta = 0;
+    double realGamma = 0;
+    double simGamma = 0;
+    double realTotalDelta = 0;
+    double simTotalDelta = 0;
+    double realTotalGamma = 0;
+    double simTotalGamma = 0;
+    int realShortTotalPosition;//空头总持仓
+    int realLongTotalPosition;//多头总持仓
+    int realShortYdPosition;//空头昨持仓
+    int realLongYdPosition;//多头昨持仓
+    int realShortTdPosition;//空头今持仓
+    int realLongTdPosition;//多头今持仓
+    int realShortAvaClosePosition;//空头可平量
+    int realLongAvaClosePosition;//多头可平量
+    double realLongAmount;//多头持仓交易金额
+    double realShortAmount;//空头持仓交易金额
+    double realShortHoldAvgPrice;//空头持仓均价
+    double realLongHoldAvgPrice;//多头持仓均价
+};
 
 /*持仓信息情况*/
 class HoldPositionInfo {
@@ -734,7 +779,7 @@ void processOtherOpen(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPs
 void processClose(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList);
 void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList);
 void cancelSpecTypeOrder(string instrumentID,string type);
-void resetK15sData();
-void coverYourAss();
+double getLastPrice(string instrumentID);
+bool existUntradeOrder(string type,OrderInfo* untradeOrder);
 void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,double orderInsertPrice,int volume,string mkType,AdditionOrderInfo* addinfo);
 #endif
