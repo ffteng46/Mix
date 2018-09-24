@@ -38,6 +38,7 @@ public:
     bool isK15sFirstItem=false;//first item in k list
     //string K15sFirstStatus="0";//tick for k item
     string firstOpenKLineType="0";//0"not init";"1":sun;"2":shadow,"3":flag
+    //"10":sublogic
     string stgStatus="0";//this will be valid before first open order;will be invalid after first open.When invalid,priceStatus will become effective.
     string priceStatus="0";
     double limit[2]={0,0};

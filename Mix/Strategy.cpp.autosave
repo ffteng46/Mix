@@ -236,9 +236,14 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             }else if(mainDirection=="0"){
                 mainDirection="02";
                 LOG(INFO) << "change main dir from 0 to "+mainDirection+",begin to watch.";
-                //all untrade action
+                //1.all untrade action
 
-                //all trade close
+                //2.all trade close
+                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+                addinfo->openStgType="4000";
+                addNewOrderTrade(instrumentID,"0","0",lastPrice,techCls.firstMetricVolume,"0",addinfo);
+                
+                //
                 double tmpMax=max(abs(trueKData15M->highPrice - trueKData15M->closePrice),abs(trueKData15M->closePrice - trueKData15M->lowPrice));
                 techCls.limit[0]=trueKData15M->closePrice+0.7*tmpMax;
                 techCls.limit[1]=trueKData15M->closePrice-1*tmpMax;

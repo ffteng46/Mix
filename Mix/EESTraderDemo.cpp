@@ -1441,7 +1441,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             }
             AdditionOrderInfo* addinfo=new AdditionOrderInfo();
             addinfo->openStgType="closeP";
-            addNewOrderTrade(realseInfo->InstrumentID,"0","1",lastPrice+2*priceTick,tmpVol,"0",addinfo);
+            addNewOrderTrade(realseInfo->InstrumentID,"0","1",realseInfo->Price+4*priceTick,tmpVol,"0",addinfo);
             protectList.clear();
             //init
             coverYourAss();

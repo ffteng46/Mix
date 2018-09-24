@@ -518,6 +518,16 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     }
     techCls.RunMarketData(pDepthMarketData);
     //strategy
+    if(techCls.stgStatus == "10"){
+        if(existUntradeOrder("4000",NULL)){
+            LOG(INFO) << "There are orders not fully traded,waiting.";
+        }else{
+            LOG(INFO) << "Begin Close all.";
+            AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+            addinfo->openStgType="3000";
+            addNewOrderTrade(instrumentID,"0","0",lastPrice,techCls.firstMetricVolume,"0",addinfo);
+        }
+    }
     if(techCls.mainDirection=="0"||techCls.mainDirection=="3"||techCls.mainDirection=="02"){
         LOG(INFO) << "mainDirection="+techCls.mainDirection+",stgStatus="+techCls.stgStatus+",15s k line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
         if((techCls.stgStatus=="0"||techCls.stgStatus=="1"||techCls.stgStatus=="2")&&!techCls.newestData15M->min3_last){
@@ -597,7 +607,11 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                     }
                 }
             }
-        }else if(techCls.stgStatus=="3"){//now first open is ok,not care 15s k line.
+        }else if(techCls.stgStatus=="10"){
+            LOG(INFO)<<"We step into sublogic.";
+
+        }
+        else if(techCls.stgStatus=="3"){//now first open is ok,not care 15s k line.
             boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
             if(techCls.priceStatus=="0"){//just first open happen.
                 double priceTick=getPriceTick(instrumentID);
