@@ -107,7 +107,8 @@ public:
     double              m_Price;						///< 价格
     double realPrice;
     unsigned int        volumeTotalOriginal;							///< 数量
-    unsigned int realVolume=0;
+    int totalTradeVolume=0;//
+    unsigned int realVolume=0;//current trade
     unsigned int		clientOrderToken;				///< 整型，必须保证，这次比上次的值大，并不一定需要保证连续
     unsigned int		m_Tif;							///< 当需要下FAK/FOK报单时，需要设置为EES_OrderTif_IOC
     unsigned int		marketOrderToken;//response to shengli plantform

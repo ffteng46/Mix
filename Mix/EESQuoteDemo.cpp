@@ -633,7 +633,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                                       +"].This is the '2 tick trigger stop loss' range.add new order.";
                         AdditionOrderInfo* addinfo=new AdditionOrderInfo();
                         addinfo->openStgType="2022";
-                        addNewOrderTrade(instrumentID,"0","0",lastPrice,ceil(techCls.firstMetricVolume/3.0),"0",addinfo);
+                        //addNewOrderTrade(instrumentID,"0","0",lastPrice,ceil(techCls.firstMetricVolume/3.0),"0",addinfo);
+                        addNewOrderTrade(instrumentID,"0","0",lastPrice,techCls.firstMetricVolume,"0",addinfo);
                     }
                 }else {//if price between one sweet range
                     LOG(INFO)<<"Price step into one sweet range.lastPrice="+boost::lexical_cast<string>(lastPrice);
@@ -717,7 +718,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                                               +"].This is the '2 tick trigger stop loss' range.add new order.";
                                 AdditionOrderInfo* addinfo=new AdditionOrderInfo();
                                 addinfo->openStgType="2022";
-                                addNewOrderTrade(instrumentID,"0","0",lastPrice,ceil(techCls.firstMetricVolume/3.0),"0",addinfo);
+                                //addNewOrderTrade(instrumentID,"0","0",lastPrice,ceil(techCls.firstMetricVolume/3.0),"0",addinfo);
+                                addNewOrderTrade(instrumentID,"0","0",lastPrice,techCls.firstMetricVolume,"0",addinfo);
                             }
                         }else{
                             LOG(INFO)<<"There are orders traded at lastPrice="+boost::lexical_cast<string>(lastPrice)+",not process.";
