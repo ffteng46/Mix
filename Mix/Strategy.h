@@ -1,6 +1,4 @@
 #pragma once
-#include "./ctpapi/ThostFtdcMdApi.h"
-#include "./ctpapi/ThostFtdcTraderApi.h"
 #include "EESQuoteDefine.h"
 #include <fstream>
 #include <vector>
@@ -15,7 +13,7 @@ public:
 	~Strategy();
     EESMarketDepthQuoteData tickData;
 	//基础资料
-	TThostFtdcInstrumentIDType InstrumentID;
+//	TThostFtdcInstrumentIDType InstrumentID;
     //"0":long;"1":short;"3":default
     string mainDirection="3";
     bool genKLine_15S=false;
@@ -44,30 +42,36 @@ public:
     double limit[2]={0,0};
     double K2=1;
     double K1=1;
-    int firstMetricVolume=1;//volume of first open
+    int firstMetricVolume=2;//volume of first open
     double firstOpenPrice;//limit price of first open
-    int nTickMoveSL=3;//the first adjust range.default is 3 tick.when satisfy,stop loss price will move up or down 1 tick.
+    int nTickMoveSL=6;//the first adjust range.default is 3 tick.when satisfy,stop loss price will move up or down 1 tick.
     double stopLossPrice=0;//after first open,when lastPrice touch this price will trigger stop loss action.
     int stopLossPriceTick=1;//stopLossPrice=firstOpenPrice+stopLossPriceTick*tickPrice
     int nJumpTriggerSL=2;//when lastPrice touch n jump trigger stop loss range(tipically 2 double of nTickMoveSL),stop loss stopLossPrice will set to last price -njump*tick
-    int oneNormalGap=2;
-    int oneSweetGap=2;
-    int oneNormalGrade=3;
-    int oneSweetGrade=2;
-    int oneNormalVolume=1;
-    int twoGrade=8;//how mann grade for two status;
+    int oneNormalGap=1;
+    int oneSweetGap=1;
+    int oneNormalGrade=2;
+    int oneSweetGrade=1;
+    int oneNormalVolume=2;
+    int twoGrade=2;//how mann grade for two status;
     int twoGap=1;//how many ticks in each grade for two status;
     int srsptn=1;//#空头逆向加仓时,空头止盈点数shortReverseStopProfitTickNums
-    int lrsptn=1;//#多头逆向加仓时,多头止盈点数longReverseStopProfitTickNums
+    int lrsptn=3;//#多头逆向加仓时,多头止盈点数longReverseStopProfitTickNums
     bool isFirst=false;//if first open order is executed.
     bool existStock=false;
     double maxPrice=0;
     double minPrice=0;
     bool shake=false;//
     double unlockPrice=0;
-    int protectVolume=1;//volume of protection order
+    int gradeToProtect=1;
+    int protectVolume=2;//volume of protection order
     int relockATRNums=1;//when to relock after unlock.unlockprice-relockATRNums*ATR60C*tickprice
-    //############################################技术指标计算
+    int watchUnlockATRNums=1;//when to begin watching unlock price.default 6
+    int afterWatchUnlockATRNums=1;//after watching,when price touch the extrame point and then reserve back to n atr,stop loss immediate.
+    int watchUnlockAnotherATRNums=1;//when unlock one side ,begin to watch after price breaks n atr.
+    int afterWatchUnlockOtherATRNums=1;//When price touch extream price point,we will stop loss another side of order when price reverse back n atr.
+    int timesOfStopLoss=4;//price over unlockPrice+timesOfStopLoss*twoGap will stop loss.
+    //############################################技术指标计算###########################################
 	vector<double> bullings;					//布林带数组
 	int bulling_window{ 20 };							//输入参数
 	double bulling_set{1.5};							//输入参数

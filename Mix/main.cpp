@@ -38,6 +38,8 @@ list<WaitForCloseInfo*> allTradeList;//before one normal
 list<WaitForCloseInfo*> longReverseList;//before one normal
 list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
 unordered_map<string, HoldPositionInfo*> reversePosition;
+bool testSwitch=false;
+bool isInstrumentInit=false;
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list

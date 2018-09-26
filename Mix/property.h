@@ -723,6 +723,8 @@ string getOrderInfo(OrderInfo* info);
 string getCancleOrderInfo(EES_CancelOrder  *clOrder);
 int getPriceExistAmount(string instrumentID,string direction,double price,double lastPrice,double tickPrice);
 void tryOrderAction(string instrumentID,OrderInfo* orderInfo,string actionType);
+//all spec instrumentID will be action.
+void tryAllOrderAction(string instrumentID);
 string num2str(double i);
 void computeDualTrustPara(double lastPrice);
 bool existUntradeOrder(string type,OrderInfo* untradeOrder);

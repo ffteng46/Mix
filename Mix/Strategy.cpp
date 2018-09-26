@@ -1,10 +1,6 @@
-#include "stdafx.h"
 #include "Strategy.h"
-#include "api_config_extern.h"
 #include "calculate.h"
 #include "property.h"
-//#include "S36Dlg.h"
-#include "resource.h"
 #include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
 #include<map>
@@ -13,9 +9,12 @@
 //extern CS36Dlg* pDlg;
 extern vector<Strategy* > allRunningTasks;
 extern Strategy techCls;
-
+extern list<WaitForCloseInfo*> protectList;//protect order list
+extern list<WaitForCloseInfo*> allTradeList;//before one normal
+extern list<WaitForCloseInfo*> longReverseList;//before one normal
+extern list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
 extern calculate cal;					//先在主入口实例化，然后引用这个实例
-
+extern bool testSwitch;
 Strategy::Strategy()
 {
     //memset(&tickData, 0, sizeof(CThostFtdcDepthMarketDataField));
@@ -59,6 +58,7 @@ Strategy::~Strategy()
 
 void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
 {
+    string instrumentID=pDepthMarketData->InstrumentID;
     memcpy(&tickData, pDepthMarketData, sizeof(EESMarketDepthQuoteData));
 	//QueryPerformanceCounter(&currentTime);
 	//cout << "start cal !!!!!!!!!!!" << endl;
@@ -88,7 +88,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
 
             INDEX_15s = kIndex_15s;
             creat_Kline(&tickData, kIndex_15s, KData_15s);
-            if(KData_15s.size()!=0){
+            if(KData_15s.size()>=2){
                 vector<Kdata >::iterator it=KData_15s.end()-2;
                 trueKData15S=&(*it);
                 if(!isK15sFirstItem){
@@ -126,7 +126,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         creat_Kline(&tickData, kIndex_15m, KData_15m);
         run_tech_lib(KData_15m);
         newestData15M=&(KData_15m[KData_15m.size()-1]);
-        if(KData_15m.size()!=0){
+        if(KData_15m.size()>=2){
             LOG(INFO) << "this is just k 15m line!";
             vector<Kdata >::iterator it=KData_15m.end()-2;
             trueKData15M=&(*it);
@@ -143,6 +143,9 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         }
         //write_record(KData_15m, UpdateTime, kdata15min);
 	}
+    mainDirection="0";
+    beginK15s=true;
+    return;
     if(genKLine_15m&&trueKData15M){
         string msg="diff="+boost::lexical_cast<string>(trueKData15M->macd_diff) +","
                 +"dea="+boost::lexical_cast<string>(trueKData15M->macd_dea) +","
@@ -151,13 +154,16 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 +"ma20="+boost::lexical_cast<string>(trueKData15M->ma20);
         LOG(INFO) << msg;
         if(trueKData15M->macd_dea==0||trueKData15M->ma20==0||trueKData15M->ma10==0){
-            return;
+            //return;
         }
         if(trueKData15M->macd_diff>trueKData15M->macd_dea
                 &&trueKData15M->ma5>trueKData15M->ma20
                 &&trueKData15M->ma10>trueKData15M->ma20){//main direction is long
             LOG(INFO) << "match long strongly condition!current main direction="+mainDirection;
-            if(mainDirection=="02"){//strong->watch->strong
+            if(testSwitch){
+                mainDirection="0";
+
+            }else if(mainDirection=="02"){//strong->watch->strong
                 Strategy::Kdata* lastTwoK;
                 if(KData_15m.size()>=3){
                     vector<Strategy::Kdata >::iterator it=KData_15m.end()-3;
@@ -186,13 +192,24 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 LOG(INFO) << "change main direciton from 3 to 0;begin to compute 15s k line,current 15s k line size is "
                               +boost::lexical_cast<string>(KData_15s.size());
             }else{
-                LOG(INFO) << "change main direciton from "+mainDirection+"to 0!";
-                mainDirection="0";
+                if(mainDirection == "12"){
+                    LOG(INFO)<<"direction change from 12 to 0 directly.should close all position,and start from 0 point?";
+                    mainDirection="0";
+                    beginK15s=true;
+                    KData_15s.clear();
+                    LOG(INFO) << "change main direciton from 3 to 0;begin to compute 15s k line,current 15s k line size is "
+                                  +boost::lexical_cast<string>(KData_15s.size());
+                }else{
+                    LOG(INFO) << "change main direciton from "+mainDirection+"to 0!";
+                    mainDirection="0";
+                }
+
             }
         }else if(trueKData15M->macd_diff < trueKData15M->macd_dea
                  &&trueKData15M->ma5 < trueKData15M->ma20
                  &&trueKData15M->ma10 < trueKData15M->ma20){
             LOG(INFO) << "match short strongly condition!"+msg;
+            return;
             if(mainDirection=="12"){//strong->watch->strong
                 Strategy::Kdata* lastTwoK;
                 if(KData_15m.size()>=3){
@@ -232,10 +249,31 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             }else if(mainDirection=="02"||mainDirection=="12"){
                 LOG(INFO) << "last 15m k is at watching status,this line not match strongly condition,reset to default.";
                 mainDirection = "3";
+                if(stgStatus=="11"){
+                    LOG(INFO)<<"In watching status,don't find direction by dual trust.stgStatus reset to 0.";
+                    stgStatus="0";
+                }
                 resetK15sData();
             }else if(mainDirection=="0"){
                 mainDirection="02";
-                LOG(INFO) << "change main dir from 0 to "+mainDirection+",begin to watch.";
+                techCls.priceStatus="0";
+                techCls.stgStatus="10";
+                LOG(INFO) << "change main dir from 0 to "+mainDirection+",begin to watch.stgStatus set to "+techCls.stgStatus;
+
+                //all untrade action
+                LOG(INFO)<<"just watching status,all untrade order will be action.";
+                tryAllOrderAction(instrumentID);
+                //tmpLongReverseList.clear();
+                //longReverseList.clear();
+                //transfer all order in WaitForCloseInfo to longReverseList
+                /*
+                if(allTradeList.size() > 0){
+                    for(list<WaitForCloseInfo*>::iterator wfIt = allTradeList.begin();wfIt!=allTradeList.end();){
+                        //tmpLongReverseList->push_back(*wfIt);
+                        longReverseList.push_back(*wfIt);
+                        wfIt = allTradeList.erase(wfIt);
+                    }
+                }
                 //all untrade action
 
                 //all trade close
@@ -247,7 +285,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 techCls.minPrice=0;
                 techCls.maxPrice=0;
                 techCls.firstOpenKLineType="0";
-                techCls.KData_15s.clear();
+                techCls.KData_15s.clear();*/
             }else if(mainDirection=="1"){
                 mainDirection="12";
                 LOG(INFO) << "change main dir from 1 to "+mainDirection+",begin to watch.";
@@ -377,7 +415,7 @@ void Strategy::update_kline(EESMarketDepthQuoteData* tickData, vector<Kdata > &v
     {
         int curr_sec{ 0 };
         curr_sec = UpdateTime - INDEX_15m * 60;
-        if (curr_sec>12 * 60)
+        if (false&&curr_sec>12 * 60)
         {
             string msg="alarm:3 minites before 15m k line.";
             LOG(ERROR)<<msg;
