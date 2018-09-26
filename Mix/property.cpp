@@ -5693,19 +5693,24 @@ void processClose(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstLis
     int reserve = realseInfo->tradeVolume;
     for(list<WaitForCloseInfo*>::iterator wfcIT = userPstList->begin();wfcIT != userPstList->end();){
         WaitForCloseInfo* wfcInfo = *wfcIT;
-        if(wfcInfo->tradeVolume > reserve){
-            wfcInfo->tradeVolume -= reserve;
-            break;
-        }else if(wfcInfo->tradeVolume == reserve){
-            userPstList->erase(wfcIT);
-            break;
-        }else if(wfcInfo->tradeVolume < reserve){
-            reserve -= wfcInfo->tradeVolume;
-            wfcIT = userPstList->erase(wfcIT);
+        if(realseInfo->Direction != wfcInfo->direction){
+            if(wfcInfo->tradeVolume > reserve){
+                wfcInfo->tradeVolume -= reserve;
+                break;
+            }else if(wfcInfo->tradeVolume == reserve){
+                userPstList->erase(wfcIT);
+                break;
+            }else if(wfcInfo->tradeVolume < reserve){
+                reserve -= wfcInfo->tradeVolume;
+                wfcIT = userPstList->erase(wfcIT);
+            }
+        }else{
+            LOG(INFO)<<"This order is the same direction of close,not process.";
+            wfcIT++;
         }
     }
     LOG(INFO)<<"alfter process close,allTradeList="+boost::lexical_cast<string>(allTradeList.size())+",longReverseList="
-               +boost::lexical_cast<string>(longReverseList.size());
+               +boost::lexical_cast<string>(longReverseList.size())+",reserve="+boost::lexical_cast<string>(reserve);
 }
 
 void processUserHoldPosition(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList){
@@ -5778,16 +5783,18 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList){
         for(list<WaitForCloseInfo*>::iterator wfcIT = sourList->begin();wfcIT != sourList->end();wfcIT ++){
             WaitForCloseInfo* wfcInfo = *wfcIT;
             if(wfcInfo->direction == "0"){//long position
-                LOG(INFO)<<"trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice);
+                //LOG(INFO)<<"trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice);
                 userHoldPst.longTotalPosition += wfcInfo->tradeVolume;
                 userHoldPst.longAmount += wfcInfo->tradeVolume*wfcInfo->openPrice;
                 userHoldPst.longHoldAvgPrice = userHoldPst.longAmount/(userHoldPst.longTotalPosition);
-                LOG(INFO)<<"trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
+                LOG(INFO)<<"long:trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
                            +boost::lexical_cast<string>(userHoldPst.longAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice);
             }else if(wfcInfo->direction == "1"){//short position
                 userHoldPst.shortTotalPosition += wfcInfo->tradeVolume;
                 userHoldPst.shortAmount += wfcInfo->tradeVolume*wfcInfo->openPrice;
                 userHoldPst.shortHoldAvgPrice = userHoldPst.shortAmount/(userHoldPst.shortTotalPosition);
+                LOG(INFO)<<"short:trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
+                           +boost::lexical_cast<string>(userHoldPst.shortAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
             }else{
                 LOG(ERROR)<<"ERROR:wrong type diretion="+wfcInfo->direction;
             }
