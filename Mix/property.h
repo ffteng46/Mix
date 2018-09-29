@@ -471,7 +471,19 @@ public:
     unsigned int marketOrderToken;
     string openStgType;
     string direction;
+    string instrumentID;
 };
+class SpecOrderField{
+public:
+    string instrumentID;
+    string direction;
+    string offsetFlag;
+    double lastPrice;
+    int volume;
+    string orderType;
+    string openStgType;
+};
+
 /*组合成交量以及可成交阈值都在此进行设置*/
 class PriceGap {
 public:
@@ -739,5 +751,9 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList);
 void cancelSpecTypeOrder(string instrumentID,string type);
 void resetK15sData();
 void coverYourAss();
+void doSpecOrder(SpecOrderField* sof);
+void lockInit();
+void sendMSG(string msg);
+string getTradeInfo(OrderFieldInfo* realseInfo);
 void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,double orderInsertPrice,int volume,string mkType,AdditionOrderInfo* addinfo);
 #endif

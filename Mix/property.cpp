@@ -17,11 +17,15 @@
 #include <boost/thread/recursive_mutex.hpp>
 using namespace std;
 extern HoldPositionInfo userHoldPst;//not real hold position info
+extern list<WaitForCloseInfo*> protectList;//protect order list
 extern list<WaitForCloseInfo*> allTradeList;//before one normal
 extern list<WaitForCloseInfo*> longReverseList;//before one normal
 extern list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
 extern Strategy techCls;
 extern unordered_map<string, HoldPositionInfo*> reversePosition;
+extern OrderInfo orderInfo;
+extern SpecOrderField* sof;
+extern bool recordMSG;
 /*****************************marketdata*/
 //gap list map
 extern unordered_map<string, HoldPositionInfo*> normalMMPositionmap;
@@ -1924,7 +1928,18 @@ void tryAllOrderAction(string instrumentID){
     OriginalOrderFieldInfo* oriOrderField;
     for(unordered_map<string, OriginalOrderFieldInfo*>::iterator it = originalOrderMap.begin();it!=originalOrderMap.end();it++){
         oriOrderField = it->second;
-        if(oriOrderField->instrumentID == instrumentID){
+        if(instrumentID==""){
+            marketOrderToken = oriOrderField->marketOrderToken;
+            //1、撤单
+            EES_CancelOrder  clOrder;
+            memset(&clOrder, 0, sizeof(EES_CancelOrder));
+            strcpy(clOrder.m_Account, oriOrderField->investorID.c_str());
+            clOrder.m_Quantity = 0;
+            clOrder.m_MarketOrderToken = marketOrderToken;
+            ptradeApi->reqOrderAction(&clOrder);
+            string tmporder = getCancleOrderInfo(&clOrder);
+            LOG(INFO) << "direct action;order action=" + tmporder;
+        }else if(oriOrderField->instrumentID == instrumentID){
             marketOrderToken = oriOrderField->marketOrderToken;
             //1、撤单
             EES_CancelOrder  clOrder;
@@ -2670,6 +2685,7 @@ void transformFromExchangeOrder(OriginalOrderFieldInfo* pOrder,OrderFieldInfo* t
     third_part_info->InstrumentID = pOrder->instrumentID;
     third_part_info->clientOrderToken = pOrder->clientOrderToken;
     third_part_info->VolumeTotalOriginal = pOrder->volumeTotalOriginal;
+    third_part_info->tradeVolume = pOrder->volumeTotalOriginal;
     third_part_info->marketOrderToken = pOrder->marketOrderToken;
 }
 void transformFromExchangeTrade(OriginalOrderFieldInfo* pOrder,TradeFieldInfo* third_part_info){
@@ -2736,10 +2752,23 @@ bool existUntradeOrder(string type,OrderInfo* untradeOrder){
         OrderInfo* orderInfo = *it;
         string openStgType = orderInfo->openStgType;
         if(openStgType==type){
-            LOG(INFO) << "bidlist:find order,openStgType="+type;
+            LOG(INFO) << "bidlist:find order,openStgType="+type+",openPrice="+boost::lexical_cast<string>(orderInfo->price)+",volume="
+                         +boost::lexical_cast<string>(orderInfo->volume);
             if(untradeOrder){
-                untradeOrder=orderInfo;
+                untradeOrder->clientOrderToken = orderInfo->clientOrderToken;
+                untradeOrder->direction = orderInfo->direction;
+                untradeOrder->function = orderInfo->function;
+                untradeOrder->instrumentID = orderInfo->instrumentID;
+                untradeOrder->m_SecType = orderInfo->m_SecType;
+                untradeOrder->mkType = orderInfo->mkType;
+                untradeOrder->m_Side = orderInfo->m_Side;
+                untradeOrder->offsetFlag = orderInfo->offsetFlag;
+                untradeOrder->openStgType = orderInfo->openStgType;
+                untradeOrder->price = orderInfo->price;
+                untradeOrder->userID = orderInfo->userID;
+                untradeOrder->status = orderInfo->status;
             }
+
             return true;
         }else{
             it++;
@@ -2749,9 +2778,21 @@ bool existUntradeOrder(string type,OrderInfo* untradeOrder){
         OrderInfo* orderInfo = *it;
         string openStgType = orderInfo->openStgType;
         if(openStgType==type){
-            LOG(INFO) << "asklist:find order,openStgType="+type;
+            LOG(INFO) << "asklist:find order,openStgType="+type+",openPrice="+boost::lexical_cast<string>(orderInfo->price)+",volume="
+                         +boost::lexical_cast<string>(orderInfo->volume);
             if(untradeOrder){
-                untradeOrder=orderInfo;
+                untradeOrder->clientOrderToken = orderInfo->clientOrderToken;
+                untradeOrder->direction = orderInfo->direction;
+                untradeOrder->function = orderInfo->function;
+                untradeOrder->instrumentID = orderInfo->instrumentID;
+                untradeOrder->m_SecType = orderInfo->m_SecType;
+                untradeOrder->mkType = orderInfo->mkType;
+                untradeOrder->m_Side = orderInfo->m_Side;
+                untradeOrder->offsetFlag = orderInfo->offsetFlag;
+                untradeOrder->openStgType = orderInfo->openStgType;
+                untradeOrder->price = orderInfo->price;
+                untradeOrder->userID = orderInfo->userID;
+                untradeOrder->status = orderInfo->status;
             }
             return true;
         }else{
@@ -2760,6 +2801,25 @@ bool existUntradeOrder(string type,OrderInfo* untradeOrder){
     }
     LOG(INFO) << "in bid ask list:not find order,openStgType="+type;
     return false;
+}
+void doSpecOrder(SpecOrderField* sof){
+    OrderInfo orderInfo;
+    if(existUntradeOrder(sof->openStgType,&orderInfo)){
+        if(orderInfo.price == sof->lastPrice){
+            LOG(INFO) << "There are untrade order at this price,not process.";
+        }else{
+            LOG(INFO) << "There are untrade order for "+sof->openStgType+",but not at this price,reinsert.";
+            cancelSpecTypeOrder(sof->instrumentID,sof->openStgType);
+            AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+            addinfo->openStgType=sof->openStgType;
+            addNewOrderTrade(sof->instrumentID,sof->direction,sof->offsetFlag,sof->lastPrice,sof->volume,sof->orderType,addinfo);
+        }
+    }else{
+        LOG(INFO) << "There are no untrade order exist,add new order.";
+        AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+        addinfo->openStgType=sof->openStgType;
+        addNewOrderTrade(sof->instrumentID,sof->direction,sof->offsetFlag,sof->lastPrice,sof->volume,sof->orderType,addinfo);
+    }
 }
 
 //only stop profit order action will be process,other order action will be deleted directly
@@ -3439,6 +3499,59 @@ void changeAlreadyTradedOrderStatus(TradeInfo* info, string status) {
 
 
 }
+void initTechMetric(list<string> dataList){
+    try {
+        string timeType;
+        string interval;
+        Strategy::Kdata kdata;
+        for (list<string>::iterator beg = dataList.begin(); beg != dataList.end(); beg++) {
+            string tmpstr = *beg;
+            vector<string> vec = split(tmpstr, "=");
+            if ("ma5" == vec[0]) {
+                kdata.ma5 = boost::lexical_cast<double>(vec[1]);
+            }else if ("ma10" == vec[0]) {
+                kdata.ma10 = boost::lexical_cast<double>(vec[1]);
+            }else if ("ma20" == vec[0]) {
+                kdata.ma20 = boost::lexical_cast<double>(vec[1]);
+            }else if ("macd_diff" == vec[0]) {
+                kdata.macd_diff = boost::lexical_cast<double>(vec[1]);
+            }else if ("macd_dea" == vec[0]) {
+                kdata.macd_dea = boost::lexical_cast<double>(vec[1]);
+            }else if ("closePrice" == vec[0]) {
+                kdata.closePrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("openPrice" == vec[0]) {
+                kdata.openPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("highPrice" == vec[0]) {
+                kdata.highPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("lowPrice" == vec[0]) {
+                kdata.lowPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("timeType" == vec[0]) {
+                timeType = vec[1];
+            }else if ("interval" == vec[0]) {
+                interval = vec[1];
+            }
+        }
+        if(timeType == "minute"){
+            if(interval == "15"){
+                techCls.KData_15m.push_back(kdata);
+            }
+        }else if(timeType == "second"){
+            if(interval == "15"){
+                techCls.KData_15s.push_back(kdata);
+            }
+        }
+    }
+    catch (const runtime_error &re) {
+        cerr << re.what() << endl;
+    }
+    catch (exception* e) {
+        cerr << e->what() << endl;
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg(e->what());
+        logqueue.push(logmsg);
+    }
+}
+
 void initGapPriceData(list<string> comOrdersList) {
     /************************************************************************/
     /* 每个字段，按照=分隔符进行分割                                        */
@@ -5616,26 +5729,31 @@ void initSunOrShadowLine(string direction){
 }
 //判断加仓是否止盈出局,base on hold position hold cost.
 bool stopProfit(string direction,double lastPrice,string instrumentID){
-    /*HoldPositionInfo* tmpinfo;
-    unordered_map<string, HoldPositionInfo*>::iterator it=reversePosition.find(instrumentID);
-    if(it == reversePosition.end()){
-        LOG(INFO)<<"can't find instrumentID="+instrumentID+" reverse position.";
-        return false;
-    }else{
-        tmpinfo= it->second;
-    }*/
     double tickPrice=getPriceTick(instrumentID);
     if(direction=="0"){//多头逆向加仓
         if((lastPrice-userHoldPst.longHoldAvgPrice)>=techCls.lrsptn*tickPrice){
             LOG(INFO)<<"lastPrice="+boost::lexical_cast<string>(lastPrice)
                         +"-longHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)
                         +">="+boost::lexical_cast<string>(techCls.lrsptn*tickPrice);
-            OrderInfo orderInfo;
+            /*LOG(INFO)<<"多头逆向止盈出局,下平仓单";
+            sof->instrumentID=instrumentID;
+            sof->direction="1";
+            sof->offsetFlag="1";
+            sof->lastPrice=lastPrice;
+            sof->volume=userHoldPst.longTotalPosition;
+            sof->orderType="0";
+            sof->openStgType="2001";
+            doSpecOrder(sof);
+            return true;*/
+            //OrderInfo orderInfo;
+
             if(existUntradeOrder("2001",&orderInfo)){
                 LOG(INFO)<<"There are untrade order for long reverse stop profit,not process.";
+                //change to follow the price
                 return true;
             }else{
                 LOG(INFO)<<"多头逆向止盈出局,下平仓单";
+                tryAllOrderAction(instrumentID);
                 userHoldPst.allPstClean="1";
                 AdditionOrderInfo* addinfo=new AdditionOrderInfo();
                 addinfo->openStgType="2001";
@@ -5650,7 +5768,18 @@ bool stopProfit(string direction,double lastPrice,string instrumentID){
             LOG(INFO)<<"shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice)
                         +"-lastPrice="+boost::lexical_cast<string>(lastPrice)
                         +">="+boost::lexical_cast<string>(techCls.srsptn*tickPrice);
-            OrderInfo orderInfo;
+            /*
+            sof->instrumentID=instrumentID;
+            sof->direction="0";
+            sof->offsetFlag="1";
+            sof->lastPrice=lastPrice;
+            sof->volume=userHoldPst.shortTotalPosition;
+            sof->orderType="0";
+            sof->openStgType="1001";
+            doSpecOrder(sof);
+            return true;*/
+
+            //OrderInfo orderInfo;
             if(existUntradeOrder("1001",&orderInfo)){
                 LOG(INFO)<<"There are untrade order for short reverse stop profit,not process.";
                 return true;
@@ -5787,13 +5916,13 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList){
                 userHoldPst.longTotalPosition += wfcInfo->tradeVolume;
                 userHoldPst.longAmount += wfcInfo->tradeVolume*wfcInfo->openPrice;
                 userHoldPst.longHoldAvgPrice = userHoldPst.longAmount/(userHoldPst.longTotalPosition);
-                LOG(INFO)<<"long:trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
+                LOG(INFO)<<"long:mktoken="+boost::lexical_cast<string>(wfcInfo->marketOrderToken)+",trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
                            +boost::lexical_cast<string>(userHoldPst.longAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice);
             }else if(wfcInfo->direction == "1"){//short position
                 userHoldPst.shortTotalPosition += wfcInfo->tradeVolume;
                 userHoldPst.shortAmount += wfcInfo->tradeVolume*wfcInfo->openPrice;
                 userHoldPst.shortHoldAvgPrice = userHoldPst.shortAmount/(userHoldPst.shortTotalPosition);
-                LOG(INFO)<<"short:trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
+                LOG(INFO)<<"short:mktoken="+boost::lexical_cast<string>(wfcInfo->marketOrderToken)+",trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
                            +boost::lexical_cast<string>(userHoldPst.shortAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
             }else{
                 LOG(ERROR)<<"ERROR:wrong type diretion="+wfcInfo->direction;
@@ -5801,13 +5930,36 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList){
 
         }
     }
-
     LOG(INFO)<<"longAmount="+boost::lexical_cast<string>(userHoldPst.longAmount)+",shortAmount="+boost::lexical_cast<string>(userHoldPst.shortAmount) +",longTotal="+boost::lexical_cast<string>(userHoldPst.longTotalPosition)+",shortTotal="+boost::lexical_cast<string>(userHoldPst.shortTotalPosition)+",longHoldAvgPrice="
                +boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+",shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
 }
+void sendMSG(string msg){
+    if(recordMSG){
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg(msg);
+        networkTradeQueue.push(logmsg);
+    }
+}
+string getTradeInfo(OrderFieldInfo* realseInfo){
+    string msg="Price="+boost::lexical_cast<string>(realseInfo->Price)
+        +";InstrumentID="+boost::lexical_cast<string>(realseInfo->InstrumentID)
+        +";Direction="+boost::lexical_cast<string>(realseInfo->Direction)
+        +";OffsetFlag="+boost::lexical_cast<string>(realseInfo->OffsetFlag)
+        +";marketOrderToken="+boost::lexical_cast<string>(realseInfo->marketOrderToken)
+        +";clientOrderToken="+boost::lexical_cast<string>(realseInfo->clientOrderToken)
+        +";orderType="+boost::lexical_cast<string>(realseInfo->orderType)
+        +";tradeVolume="+boost::lexical_cast<string>(realseInfo->tradeVolume)
+        +";openStgType="+boost::lexical_cast<string>(realseInfo->openStgType)
+        +";VolumeTotalOriginal="+boost::lexical_cast<string>(realseInfo->VolumeTotalOriginal);
+    return msg;
+}
+
 void coverYourAss(){
     userHoldPst.allPstClean="2";
     LOG(INFO)<<"All long position has been cleaned.do something of reseting.";
+    tmpLongReverseList.clear();
+    longReverseList.clear();
+    tryAllOrderAction("");
     techCls.priceStatus="0";
     techCls.stgStatus="0";
     techCls.firstOpenPrice=0;
@@ -5818,6 +5970,39 @@ void coverYourAss(){
     techCls.KData_15s.clear();
     techCls.KData_15s.push_back(tmp);
     LOG(INFO)<<"current k 15s line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
+    if(protectList.size()>0){
+        LOG(INFO)<<"All long order has been closed.If there are protect order, protect order's task is over.";
+        int tmpVol=0;
+        string instrumentID;
+        double upperPrice=0;
+        for(list<WaitForCloseInfo*>::iterator wfIT = protectList.begin();wfIT != protectList.end();wfIT++){
+            WaitForCloseInfo* wfc = *wfIT;
+            tmpVol += wfc->tradeVolume;
+            instrumentID = wfc->instrumentID;
+            if(upperPrice == 0){
+                upperPrice = wfc->openPrice;
+            }
+
+        }
+        unordered_map<string, InstrumentInfo*>::iterator it = instruments.find(instrumentID);
+
+        if(it != instruments.end()){
+            InstrumentInfo* insinfo = it->second;
+            upperPrice = insinfo->UpperLimitPrice;
+        }else{
+            LOG(ERROR)<<"ERROR:can't find instrumentID.";
+        }
+        AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+        addinfo->openStgType="closeP";
+        addNewOrderTrade(instrumentID,"0","1",upperPrice,tmpVol,"0",addinfo);
+        protectList.clear();
+    }else{
+        LOG(INFO)<<"there are not protect order,not process.";
+    }
+}
+void lockInit(){
+    techCls.minPrice=0;
+    techCls.maxPrice=0;
 }
 
 void resetK15sData(){

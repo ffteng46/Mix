@@ -1251,6 +1251,8 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     realseInfo->tradeVolume = pExec->m_Quantity;
     realseInfo->openStgType = oriOrderField->openStgType;
     realseInfo->VolumeTotalOriginal = oriOrderField->volumeTotalOriginal;//original order volume
+    string msg = "businessType=wtm_1001;"+getTradeInfo(realseInfo);
+    sendMSG(msg);
     //i known why there is a processing here!close position will minus some volume,so release position must be done before!
     if(realseInfo->OffsetFlag != "0"){
         processHowManyHoldsCanBeClose(realseInfo,"release");//释放持仓
@@ -1313,9 +1315,6 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         LOG(INFO)<<"This is init trade.";
         LOG(INFO)<<"This is stop profit trade.2011 for normal stop profit.";
         processClose(realseInfo,&allTradeList);
-        if(allTradeList.size()==0){
-            coverYourAss();
-        }
     }else if(openStgType=="2022"){//2 tick jump trigger stop loss
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="2";
@@ -1448,6 +1447,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             wfcInfo->originalVolume = realseInfo->VolumeTotalOriginal;
             wfcInfo->direction = realseInfo->Direction;
             wfcInfo->openPrice = realseInfo->Price;
+            wfcInfo->instrumentID = realseInfo->InstrumentID;
             protectList.push_back(wfcInfo);
         }else{
             LOG(INFO) << "This is protection orders's other execution,not process.";
@@ -1459,6 +1459,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         techCls.priceStatus="6";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
         if(!oriOrderField->isFirstOpen){
+            lockInit();
             oriOrderField->isFirstOpen=true;
             LOG(INFO) << "This is two status's lock execution.";
             LOG(INFO)<<"This is open position order.";
@@ -1500,37 +1501,21 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
         processClose(realseInfo,&longReverseList);
         processClose(realseInfo,&tmpLongReverseList);
-        if(longReverseList.size()==0){
-            coverYourAss();
-        }
+    }else if(openStgType=="closeP"){//close protect
+        LOG(INFO)<<"This is close protect trade.closeP.";
+        processClose(realseInfo,&protectList);
     }
     else if(openStgType=="2001"){// long reverse stop profit
         ////long reverse stop profit.all position is closed,start a new circle.some parameters should be init here.;
         LOG(INFO)<<"This is stop profit trade.2001";
         processClose(realseInfo,&longReverseList);
-        if(longReverseList.size()==0){
-            LOG(INFO)<<"All long order has been closed.If there are protect order, protect order's task is over.";
-            if(protectList.size()>0){
-                int tmpVol=0;
-                for(list<WaitForCloseInfo*>::iterator wfIT = protectList.begin();wfIT != protectList.end();wfIT++){
-                    WaitForCloseInfo* wfc = *wfIT;
-                    tmpVol += wfc->tradeVolume;
-                }
-                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                addinfo->openStgType="closeP";
-                addNewOrderTrade(realseInfo->InstrumentID,"0","1",realseInfo->Price+4*priceTick,tmpVol,"0",addinfo);
-                protectList.clear();
-            }else{
-                LOG(INFO)<<"there are not protect order,not process.";
-            }
-            //init
-            coverYourAss();
-        }
+
     }else{
         LOG(ERROR)<<"ERROR:wrong openStgType="+openStgType;
     }
     //delete init info
     if(oriOrderField->volumeTotalOriginal==oriOrderField->totalTradeVolume){
+        LOG(INFO)<<"clean order.";
         deleteOriOrder(pExec->m_ClientOrderToken);
         originalOrderMap.erase(it);
     }else{
@@ -1545,6 +1530,21 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     }else{
         computeUserHoldPositionInfo(NULL);
     }
+    if(openStgType=="2001"||openStgType=="2081"){
+        if(longReverseList.size()==0){
+            //init
+            coverYourAss();
+        }
+    }else if(openStgType=="2011"){
+        if(allTradeList.size()==0){
+            coverYourAss();
+        }
+    }
+    string stg = "businessType=wtm_1001;instrumentID="+realseInfo->InstrumentID+";longAmount="+boost::lexical_cast<string>(userHoldPst.longAmount)+",shortAmount="+boost::lexical_cast<string>(userHoldPst.shortAmount) +",longTotal="+boost::lexical_cast<string>(userHoldPst.longTotalPosition)+",shortTotal="+boost::lexical_cast<string>(userHoldPst.shortTotalPosition)+",longHoldAvgPrice="
+            +boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+",shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
+    LogMsg *logmsg = new LogMsg();
+    logmsg->setMsg(stg);
+    networkTradeQueue.push(logmsg);
 }
 bool isNormalTrade(string orderType){
     LOG(INFO) << "isNormalTrade:orderType=" + orderType;
@@ -1813,6 +1813,7 @@ void TraderDemo::OnOrderCxled(EES_OrderCxled* pOrder){
     //判断是否是不活跃合约
     transformFromExchangeOrder(oriOrderField,cancledOrderInfo);
     if(cancledOrderInfo->OffsetFlag != "0"){
+        //cancel use trade volume
         processHowManyHoldsCanBeClose(cancledOrderInfo,"release");//释放持仓
         /*
         if(isNormalTrade(oriOrderField->orderType)){//

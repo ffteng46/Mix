@@ -276,6 +276,8 @@ void simpleAsamble(char *ch) {
         completeInitArbgComOrders();
     } else if (optype == 113) {//初始化均值数据
         initGapPriceData(strlist);
+    }else if (optype == 5001) {//初始化techMetric
+        initGapPriceData(strlist);
     }
 }
 

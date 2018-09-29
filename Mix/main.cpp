@@ -38,8 +38,11 @@ list<WaitForCloseInfo*> allTradeList;//before one normal
 list<WaitForCloseInfo*> longReverseList;//before one normal
 list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
 unordered_map<string, HoldPositionInfo*> reversePosition;
+SpecOrderField* sof = new SpecOrderField();
+OrderInfo orderInfo;
 bool testSwitch=false;
 bool isInstrumentInit=false;
+bool recordMSG=true;
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list
@@ -255,7 +258,7 @@ int main(){
         boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     }
     datainit();
-    //testlist();
+    testlist();
     //getchar();
     //system("pause");
     //tradeinit();//交易
@@ -332,25 +335,71 @@ void datainit() {
             else if ("systemID" == vec[0]) {
                 systemID = vec[1];
             }
-            else if ("openTick" == vec[0]) {
-                openTick = boost::lexical_cast<double>(vec[1]);
-            }else if ("timeBias" == vec[0]) {
-                timeBias = boost::lexical_cast<int>(vec[1]);
+            else if ("firstMetricVolume" == vec[0]) {
+                techCls.firstMetricVolume = boost::lexical_cast<int>(vec[1]);
+            }else if ("nTickMoveSL" == vec[0]) {
+                techCls.nTickMoveSL = boost::lexical_cast<int>(vec[1]);
             }
-            else if ("closeTick" == vec[0]) {
-                closeTick = boost::lexical_cast<double>(vec[1]);
+            else if ("stopLossPriceTick" == vec[0]) {
+                techCls.stopLossPriceTick = boost::lexical_cast<int>(vec[1]);
             }
-            else if ("extreamTick" == vec[0]) {
-                extreamTick = boost::lexical_cast<double>(vec[1]);
+            else if ("nJumpTriggerSL" == vec[0]) {
+                techCls.nJumpTriggerSL = boost::lexical_cast<int>(vec[1]);
             }
-            else if ("extreamPriceGap" == vec[0]) {
-                extreamPriceGap = boost::lexical_cast<double>(vec[1]);
+            else if ("oneNormalGap" == vec[0]) {
+                techCls.oneNormalGap = boost::lexical_cast<int>(vec[1]);
+            }else if ("oneNormalGrade" == vec[0]) {
+                techCls.oneNormalGrade = boost::lexical_cast<int>(vec[1]);
+            }else if ("oneSweetVolume" == vec[0]) {
+                techCls.oneSweetVolume = boost::lexical_cast<int>(vec[1]);
             }
-            else if ("maPriceGap" == vec[0]) {
-                maPriceGap = boost::lexical_cast<double>(vec[1]);
+            else if ("oneSweetGap" == vec[0]) {
+                techCls.oneSweetGap = boost::lexical_cast<int>(vec[1]);
             }
-            else if ("profitValue" == vec[0]) {
-                profitValue = boost::lexical_cast<double>(vec[1]);
+            else if ("oneSweetGrade" == vec[0]) {
+                techCls.oneSweetGrade = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("oneNormalVolume" == vec[0]) {
+                techCls.oneNormalVolume = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("firstToSweetTickNums" == vec[0]) {
+                techCls.firstToSweetTickNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("sweetToNormalTickNums" == vec[0]) {
+                techCls.sweetToNormalTickNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("normalToTwoTickNums" == vec[0]) {
+                techCls.normalToTwoTickNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("twoGrade" == vec[0]) {
+                techCls.twoGrade = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("lrsptn" == vec[0]) {
+                techCls.lrsptn = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("gradeToProtect" == vec[0]) {
+                techCls.gradeToProtect = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("protectVolume" == vec[0]) {
+                techCls.protectVolume = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("relockATRNums" == vec[0]) {
+                techCls.relockATRNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("watchUnlockATRNums" == vec[0]) {
+                techCls.watchUnlockATRNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("afterWatchUnlockATRNums" == vec[0]) {
+                techCls.afterWatchUnlockATRNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("watchUnlockAnotherATRNums" == vec[0]) {
+                techCls.watchUnlockAnotherATRNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("afterWatchUnlockOtherATRNums" == vec[0]) {
+                techCls.afterWatchUnlockOtherATRNums = boost::lexical_cast<int>(vec[1]);
+            }
+            else if ("timesOfStopLoss" == vec[0]) {
+                techCls.timesOfStopLoss = boost::lexical_cast<int>(vec[1]);
             }
             else if ("remoteTradeServerPort" == vec[0]) {
                 remoteTradeServerPort = boost::lexical_cast<int>(vec[1]);
@@ -539,35 +588,34 @@ void datainit() {
     }
 }
 void testlist() {
-    LOG(INFO) << "TRADE_FRONT_ADDR=" + string(TRADE_FRONT_ADDR);
-    LOG(INFO) << "MARKET_FRONT_ADDR=" + string(MARKET_FRONT_ADDR);
-    LOG(INFO) << "BROKER_ID=" + string(BROKER_ID);
-    LOG(INFO) << "INVESTOR_ID=" + string(INVESTOR_ID);
-    LOG(INFO) << "PASSWORD=" + string(PASSWORD);
-    LOG(INFO) << "hedgeFlag=" + string(hedgeFlag);
-    LOG(INFO) << "默认下单手数defaultVolume=" + boost::lexical_cast<string>(defaultVolume);
-    LOG(INFO) << "行情端口mkdatasrvport=" + boost::lexical_cast<string>(mkdatasrvport);
-    LOG(INFO) << "重复下单次数notActiveInsertAmount=" + boost::lexical_cast<string>(notActiveInsertAmount);
-    LOG(INFO) << "重复下单间隔orderInsertInterval=" + boost::lexical_cast<string>(orderInsertInterval);
-    LOG(INFO) << "成交限制arbVolumeMetric=" + boost::lexical_cast<string>(arbVolumeMetric);
+    cout<<"=======================show all parameters========================"<<endl;
+    LOG(ERROR) << "firstMetricVolume=" + boost::lexical_cast<string>(techCls.firstMetricVolume);
+    LOG(ERROR) << "nTickMoveSL=" + boost::lexical_cast<string>(techCls.nTickMoveSL);
+    LOG(ERROR) << "stopLossPriceTick=" + boost::lexical_cast<string>(techCls.stopLossPriceTick);
+    LOG(ERROR) << "nJumpTriggerSL=" + boost::lexical_cast<string>(techCls.nJumpTriggerSL);
+    LOG(ERROR) << "oneNormalGap=" + boost::lexical_cast<string>(techCls.oneNormalGap);
+    LOG(ERROR) << "oneSweetGap=" + boost::lexical_cast<string>(techCls.oneSweetGap);
+    LOG(ERROR) << "oneSweetVolume=" + boost::lexical_cast<string>(techCls.oneSweetVolume);
+    LOG(ERROR) << "oneNormalGrade=" + boost::lexical_cast<string>(techCls.oneNormalGrade);
+    LOG(ERROR) << "oneSweetGrade=" + boost::lexical_cast<string>(techCls.oneSweetGrade);
+    LOG(ERROR) << "oneNormalVolume=" + boost::lexical_cast<string>(techCls.oneNormalVolume);
+    LOG(ERROR) << "firstToSweetTickNums=" + boost::lexical_cast<string>(techCls.firstToSweetTickNums);
+    LOG(ERROR) << "sweetToNormalTickNums=" + boost::lexical_cast<string>(techCls.sweetToNormalTickNums);
+    LOG(ERROR) << "twoGrade=" + boost::lexical_cast<string>(techCls.twoGrade);
+    LOG(ERROR) << "twoGap=" + boost::lexical_cast<string>(techCls.twoGap);
+    LOG(ERROR) << "lrsptn=" + boost::lexical_cast<string>(techCls.lrsptn);
+    LOG(ERROR) << "gradeToProtect=" + boost::lexical_cast<string>(techCls.gradeToProtect);
+    LOG(ERROR) << "protectVolume=" + boost::lexical_cast<string>(techCls.protectVolume);
+    LOG(ERROR) << "relockATRNums=" + boost::lexical_cast<string>(techCls.relockATRNums);
+    LOG(ERROR) << "watchUnlockATRNums=" + boost::lexical_cast<string>(techCls.watchUnlockATRNums);
+    LOG(ERROR) << "afterWatchUnlockATRNums=" + boost::lexical_cast<string>(techCls.afterWatchUnlockATRNums);
+    LOG(ERROR) << "watchUnlockAnotherATRNums=" + boost::lexical_cast<string>(techCls.watchUnlockAnotherATRNums);
+    LOG(ERROR) << "afterWatchUnlockOtherATRNums=" + boost::lexical_cast<string>(techCls.afterWatchUnlockOtherATRNums);
+    LOG(ERROR) << "timesOfStopLoss=" + boost::lexical_cast<string>(techCls.timesOfStopLoss);
+
+    LOG(ERROR) << "remoteTradeServerPort=" + boost::lexical_cast<string>(remoteTradeServerPort);
 
 
-    LOG(INFO) << "timeInterval=" + boost::lexical_cast<string>(timeInterval);
-    //LOG(INFO) << "overMAGapTickNums=" + boost::lexical_cast<string>(overMAGapTickNums);
-    LOG(INFO) << "biasTickNums=" + boost::lexical_cast<string>(biasTickNums);
-    LOG(INFO) << "maxFollowTimes=" + boost::lexical_cast<string>(maxFollowTimes);
-    LOG(INFO) << "maxUntradeNums=" + boost::lexical_cast<string>(maxFollowTimes);
-    LOG(INFO) << "systemID=" + systemID;
-    LOG(INFO) << "openTick=" + boost::lexical_cast<string>(openTick);
-    LOG(INFO) << "closeTick=" + boost::lexical_cast<string>(closeTick);
-    LOG(INFO) << "extreamTick=" + boost::lexical_cast<string>(extreamTick);
-    LOG(INFO) << "profitValue=" + boost::lexical_cast<string>(profitValue);
-    LOG(INFO) << "extreamPriceGap=" + boost::lexical_cast<string>(extreamPriceGap);
-    LOG(INFO) << "maPriceGap=" + boost::lexical_cast<string>(maPriceGap);
-    LOG(INFO) << "volSpread=" + boost::lexical_cast<string>(volSpread);
-    LOG(INFO) << "orderPriceLevel=" + boost::lexical_cast<string>(orderPriceLevel);
-    LOG(INFO) << "overVolume=" + boost::lexical_cast<string>(overVolume);
-    LOG(INFO) << "volMetric=" + boost::lexical_cast<string>(volMetric);
 }
 void mkdataInit() {
     cout << "start to init mdApi" << endl;

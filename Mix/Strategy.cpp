@@ -4,17 +4,10 @@
 #include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
 #include<map>
-
-
-//extern CS36Dlg* pDlg;
-extern vector<Strategy* > allRunningTasks;
 extern Strategy techCls;
-extern list<WaitForCloseInfo*> protectList;//protect order list
-extern list<WaitForCloseInfo*> allTradeList;//before one normal
-extern list<WaitForCloseInfo*> longReverseList;//before one normal
-extern list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
 extern calculate cal;					//先在主入口实例化，然后引用这个实例
 extern bool testSwitch;
+extern char tradingDay[12];
 Strategy::Strategy()
 {
     //memset(&tickData, 0, sizeof(CThostFtdcDepthMarketDataField));
@@ -77,15 +70,12 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
     ///////////////
     if(beginK15s){
         LOG(INFO)<<"begin .15s k line.";
-        if (kIndex_15s == INDEX_15s)
-        {
+        if (kIndex_15s == INDEX_15s){
             update_kline(&tickData, KData_15s,false);
             genKLine_15S=false;
         }
-        else if (kIndex_15s != INDEX_15s)
-        {
+        else if (kIndex_15s != INDEX_15s){
             genKLine_15S=true;//a new k line
-
             INDEX_15s = kIndex_15s;
             creat_Kline(&tickData, kIndex_15s, KData_15s);
             if(KData_15s.size()>=2){
@@ -107,21 +97,23 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         update_kline(&tickData, KData_15m,true);
         genKLine_15m=false;
         Kdata* tmpk = &KData_15m[KData_15m.size() - 1];
-        /*
-        LOG(INFO)<<"current K line info:ma5="+boost::lexical_cast<string>(tmpk->ma5)+","
-                   + "ma10="+boost::lexical_cast<string>(tmpk->ma10)+","
-                   + "ma20="+boost::lexical_cast<string>(tmpk->ma20)+","
-                   + "macd_diff="+boost::lexical_cast<string>(tmpk->macd_diff)+","
-                   + "macd_dea="+boost::lexical_cast<string>(tmpk->macd_dea)+","
-                   + "closePrice="+boost::lexical_cast<string>(tmpk->closePrice)+","
-                   + "openPrice="+boost::lexical_cast<string>(tmpk->openPrice)+","
-                   + "highPrice="+boost::lexical_cast<string>(tmpk->highPrice)+","
-                   + "lowPrice="+boost::lexical_cast<string>(tmpk->lowPrice)+",";*/
-	}
-	else if (kIndex_15m != INDEX_15m)
-	{
+        string msg="businessType=wtm_5002;ma5="+boost::lexical_cast<string>(tmpk->ma5)+";"
+                + "ma10="+boost::lexical_cast<string>(tmpk->ma10)+";"
+                + "ma20="+boost::lexical_cast<string>(tmpk->ma20)+";"
+                + "macd_diff="+boost::lexical_cast<string>(tmpk->macd_diff)+";"
+                + "macd_dea="+boost::lexical_cast<string>(tmpk->macd_dea)+";"
+                + "closePrice="+boost::lexical_cast<string>(tmpk->closePrice)+";"
+                + "openPrice="+boost::lexical_cast<string>(tmpk->openPrice)+";"
+                + "highPrice="+boost::lexical_cast<string>(tmpk->highPrice)+";"
+                + "lowPrice="+boost::lexical_cast<string>(tmpk->lowPrice)+";"
+                + "tradingDay="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
+                + "updateTime="+tradingDay+";"
+                + "timeType=minute;"
+                + "minute=15";
+        sendMSG(msg);
+        //LOG(INFO)<<msg;
+	}else if (kIndex_15m != INDEX_15m){
         genKLine_15m=true;
-
 		INDEX_15m = kIndex_15m;
         creat_Kline(&tickData, kIndex_15m, KData_15m);
         run_tech_lib(KData_15m);
@@ -130,16 +122,20 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             LOG(INFO) << "this is just k 15m line!";
             vector<Kdata >::iterator it=KData_15m.end()-2;
             trueKData15M=&(*it);
-            LOG(INFO)<<"15m K line info:ma5="+boost::lexical_cast<string>(trueKData15M->ma5)+","
-                       + "ma5="+boost::lexical_cast<string>(trueKData15M->ma5)+","
-                       + "ma10="+boost::lexical_cast<string>(trueKData15M->ma10)+","
-                       + "ma20="+boost::lexical_cast<string>(trueKData15M->ma20)+","
-                       + "macd_diff="+boost::lexical_cast<string>(trueKData15M->macd_diff)+","
-                       + "macd_dea="+boost::lexical_cast<string>(trueKData15M->macd_dea)+","
-                       + "closePrice="+boost::lexical_cast<string>(trueKData15M->closePrice)+","
-                       + "openPrice="+boost::lexical_cast<string>(trueKData15M->openPrice)+","
-                       + "highPrice="+boost::lexical_cast<string>(trueKData15M->highPrice)+","
-                       + "lowPrice="+boost::lexical_cast<string>(trueKData15M->lowPrice)+",";
+            string msg="businessType=wtm_5001;ma5="+boost::lexical_cast<string>(trueKData15M->ma5)+";"
+                    + "ma10="+boost::lexical_cast<string>(trueKData15M->ma10)+";"
+                    + "ma20="+boost::lexical_cast<string>(trueKData15M->ma20)+";"
+                    + "macd_diff="+boost::lexical_cast<string>(trueKData15M->macd_diff)+";"
+                    + "macd_dea="+boost::lexical_cast<string>(trueKData15M->macd_dea)+";"
+                    + "closePrice="+boost::lexical_cast<string>(trueKData15M->closePrice)+";"
+                    + "openPrice="+boost::lexical_cast<string>(trueKData15M->openPrice)+";"
+                    + "highPrice="+boost::lexical_cast<string>(trueKData15M->highPrice)+";"
+                    + "lowPrice="+boost::lexical_cast<string>(trueKData15M->lowPrice)+";"
+                    + "tradingDay="+tradingDay+";"
+                    + "timeType=minute;"
+                    + "minute=15";
+            sendMSG(msg);
+            LOG(INFO)<<msg;
         }
         //write_record(KData_15m, UpdateTime, kdata15min);
 	}

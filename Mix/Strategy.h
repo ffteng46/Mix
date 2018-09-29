@@ -53,6 +53,10 @@ public:
     int oneNormalGrade=2;
     int oneSweetGrade=1;
     int oneNormalVolume=2;
+    int oneSweetVolume=2;
+    int firstToSweetTickNums=3;
+    int sweetToNormalTickNums=3;
+    int normalToTwoTickNums=3;
     int twoGrade=2;//how mann grade for two status;
     int twoGap=1;//how many ticks in each grade for two status;
     int srsptn=1;//#空头逆向加仓时,空头止盈点数shortReverseStopProfitTickNums
