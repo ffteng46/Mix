@@ -263,11 +263,11 @@ int main(){
     //system("pause");
     //tradeinit();//交易
     startSendMDThread(1);
-    mkdataInit();//行情
+    //mkdataInit();//行情
     //boost::this_thread::sleep(boost::posix_time::seconds(2));
     ptradeApi = new TraderDemo();
     //TraderDemo tmd;
-    ptradeApi->Run();
+    //ptradeApi->Run();
     // 初始化UserApi
 
     while(1){

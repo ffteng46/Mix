@@ -57,7 +57,7 @@ public:
                 continue;
             }
             // 打印当前连接进来的客户端
-            std::cout << "client: " << socket->remote_endpoint().address() << std::endl;
+            std::cout << "client from: " << socket->remote_endpoint().address() << std::endl;
             boost::thread t1(&tradeEngineWriter, socket);
             boost::thread t2(&tradeEngineReader, socket);
         }
@@ -150,7 +150,7 @@ int tradeEngineWriter(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                     break;
                 }
                 // 异步发送 "hello CSND_Ayo" 消息到客户端，发送成功后，自动调用Server::write_handler函数
-                size_t sendSize = boost::asio::write(*_socket, boost::asio::buffer(strinfo,datalen + 4));
+                size_t sendSize = boost::asio::write(*_socket, boost::asio::buffer(strinfo,datalen + 4),error);
                 //boost::asio::async_write(*_socket, boost::asio::buffer(strinfo, strlen(info) + 1),
                 //boost::bind(&Server::write_handler, this));
                 //_socket->send(boost::asio::buffer(strinfo, strlen(info) + 1), error);
@@ -160,8 +160,10 @@ int tradeEngineWriter(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                 //loglist.push_back("发送数据==》" + strinfo);
                 LOG(INFO) << "tradeEngineWriter服务器发送数据字节数=" + boost::lexical_cast<string>(sendSize) + " bytes：" + boost::lexical_cast<string>(strlen(info)) + ",content=" + strinfo;
                 strinfo.clear();
-                if (error == boost::asio::error::eof)
+                if (error == boost::asio::error::eof){
+                    LOG(ERROR)<<"Writer:Connection closed cleanly by peer.";
                     break; // Connection closed cleanly by peer.
+                }
             }
         }
         return 0;
@@ -191,11 +193,12 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
             char a[100] = "\0";
             int pkg_databodylen = 0;
 
-            size_t readsize = boost::asio::read(*_socket, boost::asio::buffer(pkg_head, 4));
+            size_t readsize = boost::asio::read(*_socket, boost::asio::buffer(pkg_head, 4),error);
             //size_t readsize = _socket->read(boost::asio::buffer(pkg_head, 4), error);
-            if (error == boost::asio::error::eof)
+            if (error == boost::asio::error::eof){
+                LOG(ERROR)<<"Reader:Connection closed cleanly by peer.";
                 break; // Connection closed cleanly by peer.
-            else {
+            }else {
                 cout << "本次读取Head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head)<<endl;
                 LOG(INFO) << "本次读取head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head);
             }
@@ -204,12 +207,13 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                 this_thread::yield();
             } else {
                 cout << "length of databody：" << pkg_databodylen << endl;
-                size_t readsize2 = boost::asio::read(*_socket, boost::asio::buffer(recvbuf, pkg_databodylen + 1));
+                size_t readsize2 = boost::asio::read(*_socket, boost::asio::buffer(recvbuf, pkg_databodylen + 1),error);
                 //size_t readsize2 = _socket->read_some(boost::asio::buffer(recvbuf, pkg_databodylen), error);
                 //boost::asio::async_read(_socket, boost::asio::buffer(recvbuf, pkg_databodylen), error);
-                if (error == boost::asio::error::eof)
+                if (error == boost::asio::error::eof){
+                    LOG(ERROR)<<"Reader:Connection closed cleanly by peer.";
                     break; // Connection closed cleanly by peer.
-                else {
+                }else {
                     cout << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf) << endl;;
                     LOG(INFO) << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf);
                 }

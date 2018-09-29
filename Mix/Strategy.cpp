@@ -73,8 +73,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         if (kIndex_15s == INDEX_15s){
             update_kline(&tickData, KData_15s,false);
             genKLine_15S=false;
-        }
-        else if (kIndex_15s != INDEX_15s){
+        }else if (kIndex_15s != INDEX_15s){
             genKLine_15S=true;//a new k line
             INDEX_15s = kIndex_15s;
             creat_Kline(&tickData, kIndex_15s, KData_15s);
@@ -97,7 +96,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         update_kline(&tickData, KData_15m,true);
         genKLine_15m=false;
         Kdata* tmpk = &KData_15m[KData_15m.size() - 1];
-        string msg="businessType=wtm_5002;ma5="+boost::lexical_cast<string>(tmpk->ma5)+";"
+        string msg="businessType=wtm_5001;ma5="+boost::lexical_cast<string>(tmpk->ma5)+";"
                 + "ma10="+boost::lexical_cast<string>(tmpk->ma10)+";"
                 + "ma20="+boost::lexical_cast<string>(tmpk->ma20)+";"
                 + "macd_diff="+boost::lexical_cast<string>(tmpk->macd_diff)+";"
@@ -109,6 +108,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 + "tradingDay="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                 + "updateTime="+tradingDay+";"
                 + "timeType=minute;"
+                + "opType=u;"
                 + "minute=15";
         sendMSG(msg);
         //LOG(INFO)<<msg;
@@ -133,6 +133,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                     + "lowPrice="+boost::lexical_cast<string>(trueKData15M->lowPrice)+";"
                     + "tradingDay="+tradingDay+";"
                     + "timeType=minute;"
+                    + "timeType=minute;"
+                    + "opType=c;"
                     + "minute=15";
             sendMSG(msg);
             LOG(INFO)<<msg;

@@ -1308,6 +1308,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         LOG(INFO)<<"This is close all position directly trade.4000";
         processClose(realseInfo,&longReverseList);
         if(longReverseList.size()==0){
+            tmpLongReverseList.clear();
             LOG(INFO)<<"All order has been closed,so close all order's task is over.";
         }
     }
