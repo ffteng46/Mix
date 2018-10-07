@@ -1,0 +1,14 @@
+//·½·¨һ
+$ git fetch origin master //´Ó¶³̵Ärigin²ֿâmaster·Ö§ÏÔ´ú±¾µصÄrigin master
+
+$ git log -p master.. origin/master//±Ƚϱ¾µصĲֿâԶ³̲ο¼µÄø$ git merge origin/master//°Ñ¶³ÌÂØÂ´µĴú²¢µ½±¾µزֿ⣬Զ³̵ĺͱ¾µصĺϲ¢
+
+//·½·¨¶þ
+$ git fetch origin master:temp //´Ó¶³̵Ärigin²ֿâmaster·Ö§ÏÔµ½±¾µز¢Ð½¨һ¸ö§temp
+
+$ git diff temp//±ȽÏaster·Ö§ºÍemp·Ö§µĲ»ͬ
+
+$ git merge temp//ºϲ¢temp·Ö§µ½master·Ö§
+
+$ git branch -d temp//ɾ³ý:wq
+
