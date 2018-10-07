@@ -26,6 +26,7 @@ extern unordered_map<string, HoldPositionInfo*> reversePosition;
 extern OrderInfo orderInfo;
 extern SpecOrderField* sof;
 extern bool recordMSG;
+extern string currTime;
 /*****************************marketdata*/
 //gap list map
 extern unordered_map<string, HoldPositionInfo*> normalMMPositionmap;
@@ -1521,8 +1522,10 @@ int processtrade(TradeFieldInfo *pTrade)
     //processAverageGapGprice(pTrade);
     tradeParaProcessTwo();
     string tmpmsg;
+    string msg;
     for (unordered_map<string, HoldPositionInfo*>::iterator it = positionmap.begin(); it != positionmap.end(); it++) {
         HoldPositionInfo* tmpinfo = it->second;
+        /*
         tmpmsg.append(it->first).append("持仓情况:");
         char char_tmp_pst[10] = { '\0' };
         char char_longyd_pst[10] = { '\0' };
@@ -1560,9 +1563,25 @@ int processtrade(TradeFieldInfo *pTrade)
         tmpmsg.append(";持仓均价=");
         tmpmsg.append(boost::lexical_cast<string>(tmpinfo->shortHoldAvgPrice));
         tmpmsg.append(";持仓金额=" + boost::lexical_cast<string>(tmpinfo->shortAmount) + ";#");
+        */
+        msg = "businessType=wtm_2000;tradingDay="+tradingDayT+";updateTime="+currTime + ";instrumentID="+it->first
+                +";longTotalPosition="+boost::lexical_cast<string>(tmpinfo->longTotalPosition)
+                +";longTdPosition="+boost::lexical_cast<string>(tmpinfo->longTdPosition)
+                +";longYdPosition="+boost::lexical_cast<string>(tmpinfo->longYdPosition)
+                +";longAvaClosePosition="+boost::lexical_cast<string>(tmpinfo->longAvaClosePosition)
+                +";longHoldAvgPrice="+boost::lexical_cast<string>(tmpinfo->longHoldAvgPrice)
+                +";shortTotalPosition="+boost::lexical_cast<string>(tmpinfo->shortTotalPosition)
+                +";shortTdPosition="+boost::lexical_cast<string>(tmpinfo->shortTdPosition)
+                +";shortYdPosition="+boost::lexical_cast<string>(tmpinfo->shortYdPosition)
+                +";shortAvaClosePosition="+boost::lexical_cast<string>(tmpinfo->shortAvaClosePosition)
+                +";shortHoldAvgPrice="+boost::lexical_cast<string>(tmpinfo->shortHoldAvgPrice);
+        cout << tmpmsg << endl;
+        LOG(INFO) << tmpmsg;
+        sendMSG(msg);
+
     }
-    cout << tmpmsg << endl;
-    LOG(INFO) << tmpmsg;
+    //cout << tmpmsg << endl;
+    //LOG(INFO) << tmpmsg;
     return 0;
 }
 //normal market maker trade
@@ -2116,8 +2135,9 @@ void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,dou
         aoi.openStgType = addinfo->openStgType;
     }
     ptradeApi->reqOrderInsert(&orderField,&aoi);
-    string tmporder = "";
-    LOG(INFO) << tmporder;
+    //"investorID":datamap.get("investorID"),"instrumentID":datamap.get("instrumentID"),"orderRef":datamap.get("orderRef")
+    string msg="businessType=wtm_1002;updateTime="+currTime+";opType=c;"+getOrderInfo(orderInfo);
+    sendMSG(msg);
 
 }
 void processAverageGapGprice(TradeFieldInfo *pTrade) {
@@ -2548,6 +2568,8 @@ string getOrderInfo(OrderInfo* info){
     msg += "openStgType=" + info->openStgType + ";";
     msg += "price=" + boost::lexical_cast<string>(info->price) + ";";
     msg += "volume=" + boost::lexical_cast<string>(info->volume) + ";";
+
+    msg += "orderRef=" + boost::lexical_cast<string>(info->clientOrderToken) + ";";
     return msg;
 
 
@@ -2822,6 +2844,7 @@ void doSpecOrder(SpecOrderField* sof){
     }
 }
 
+
 //only stop profit order action will be process,other order action will be deleted directly
 void deleteOriOrder(unsigned int  clientOrderToken){
     unsigned int  cldClientOrderToken = clientOrderToken;
@@ -2835,6 +2858,8 @@ void deleteOriOrder(unsigned int  clientOrderToken){
         if(clientOrderToken == cldClientOrderToken){
             it = bidList.erase(it);
             LOG(INFO) << "bidlist:find cancle order,delete.";
+            string msg="businessType=wtm_1002;updateTime="+currTime+";opType=d;"+getOrderInfo(orderInfo);
+            sendMSG(msg);
             break;
         }else{
             it++;
@@ -2850,6 +2875,8 @@ void deleteOriOrder(unsigned int  clientOrderToken){
         if(clientOrderToken == cldClientOrderToken){
             it = askList.erase(it);
             LOG(INFO) << "askList:find cancle order,delete.";
+            string msg="businessType=wtm_1002;updateTime="+currTime+";opType=d;"+getOrderInfo(orderInfo);
+            sendMSG(msg);
             break;
         }else{
             it++;
@@ -5908,6 +5935,7 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList){
     userHoldPst.shortAmount=0;
     userHoldPst.shortHoldAvgPrice=0;
     userHoldPst.shortTotalPosition=0;
+    string msg="businessType=wtm_1002;tradingDay="+tradingDayT+";userid="+boost::lexical_cast<string>(USER_ID)+";logTime="+currTime+";info=";
     if(sourList){
         for(list<WaitForCloseInfo*>::iterator wfcIT = sourList->begin();wfcIT != sourList->end();wfcIT ++){
             WaitForCloseInfo* wfcInfo = *wfcIT;
@@ -5916,22 +5944,26 @@ void computeUserHoldPositionInfo(list<WaitForCloseInfo*> *sourList){
                 userHoldPst.longTotalPosition += wfcInfo->tradeVolume;
                 userHoldPst.longAmount += wfcInfo->tradeVolume*wfcInfo->openPrice;
                 userHoldPst.longHoldAvgPrice = userHoldPst.longAmount/(userHoldPst.longTotalPosition);
-                LOG(INFO)<<"long:mktoken="+boost::lexical_cast<string>(wfcInfo->marketOrderToken)+",trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
-                           +boost::lexical_cast<string>(userHoldPst.longAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice);
+                msg += "long:mktoken="+boost::lexical_cast<string>(wfcInfo->marketOrderToken)+",trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
+                        +boost::lexical_cast<string>(userHoldPst.longAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice) + "\r\n";
+                //LOG(INFO)<<
             }else if(wfcInfo->direction == "1"){//short position
                 userHoldPst.shortTotalPosition += wfcInfo->tradeVolume;
                 userHoldPst.shortAmount += wfcInfo->tradeVolume*wfcInfo->openPrice;
                 userHoldPst.shortHoldAvgPrice = userHoldPst.shortAmount/(userHoldPst.shortTotalPosition);
-                LOG(INFO)<<"short:mktoken="+boost::lexical_cast<string>(wfcInfo->marketOrderToken)+",trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
-                           +boost::lexical_cast<string>(userHoldPst.shortAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
+                msg += "short:mktoken="+boost::lexical_cast<string>(wfcInfo->marketOrderToken)+",trade="+boost::lexical_cast<string>(wfcInfo->tradeVolume)+",price="+boost::lexical_cast<string>(wfcInfo->openPrice)+",amount="
+                        +boost::lexical_cast<string>(userHoldPst.shortAmount)+",avg="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice) + "\r\n";
+                //LOG(INFO)<<
             }else{
                 LOG(ERROR)<<"ERROR:wrong type diretion="+wfcInfo->direction;
             }
 
         }
     }
-    LOG(INFO)<<"longAmount="+boost::lexical_cast<string>(userHoldPst.longAmount)+",shortAmount="+boost::lexical_cast<string>(userHoldPst.shortAmount) +",longTotal="+boost::lexical_cast<string>(userHoldPst.longTotalPosition)+",shortTotal="+boost::lexical_cast<string>(userHoldPst.shortTotalPosition)+",longHoldAvgPrice="
-               +boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+",shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
+    msg += "longAmount="+boost::lexical_cast<string>(userHoldPst.longAmount)+",shortAmount="+boost::lexical_cast<string>(userHoldPst.shortAmount) +",longTotal="+boost::lexical_cast<string>(userHoldPst.longTotalPosition)+",shortTotal="+boost::lexical_cast<string>(userHoldPst.shortTotalPosition)+",longHoldAvgPrice="
+            +boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+",shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
+    LOG(INFO)<< msg;
+    sendMSG(msg);
 }
 void sendMSG(string msg){
     if(recordMSG){
@@ -5941,16 +5973,17 @@ void sendMSG(string msg){
     }
 }
 string getTradeInfo(OrderFieldInfo* realseInfo){
-    string msg="Price="+boost::lexical_cast<string>(realseInfo->Price)
-        +";InstrumentID="+boost::lexical_cast<string>(realseInfo->InstrumentID)
-        +";Direction="+boost::lexical_cast<string>(realseInfo->Direction)
-        +";OffsetFlag="+boost::lexical_cast<string>(realseInfo->OffsetFlag)
+    string msg=";price="+boost::lexical_cast<string>(realseInfo->Price)
+        +";instrumentID="+boost::lexical_cast<string>(realseInfo->InstrumentID)
+        +";direction="+boost::lexical_cast<string>(realseInfo->Direction)
+        +";investorID="+boost::lexical_cast<string>(realseInfo->investorID)
+        +";offsetFlag="+boost::lexical_cast<string>(realseInfo->OffsetFlag)
         +";marketOrderToken="+boost::lexical_cast<string>(realseInfo->marketOrderToken)
         +";clientOrderToken="+boost::lexical_cast<string>(realseInfo->clientOrderToken)
         +";orderType="+boost::lexical_cast<string>(realseInfo->orderType)
-        +";tradeVolume="+boost::lexical_cast<string>(realseInfo->tradeVolume)
+        +";volume="+boost::lexical_cast<string>(realseInfo->tradeVolume)
         +";openStgType="+boost::lexical_cast<string>(realseInfo->openStgType)
-        +";VolumeTotalOriginal="+boost::lexical_cast<string>(realseInfo->VolumeTotalOriginal);
+        +";volumeTotalOriginal="+boost::lexical_cast<string>(realseInfo->VolumeTotalOriginal);
     return msg;
 }
 

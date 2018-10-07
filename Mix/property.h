@@ -151,6 +151,7 @@ public:
     unsigned int clientOrderToken;
     string openStgType;
     int tradeVolume;
+    string investorID;
 
 };
 class InstrumentFieldInfo{

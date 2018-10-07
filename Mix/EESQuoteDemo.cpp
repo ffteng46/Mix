@@ -27,6 +27,7 @@ extern boost::recursive_mutex unique_mtx;//unique lock
 extern bool isLogout;
 extern string systemID;//系统编号，每个产品一个编号
 extern string tradingDayT;//2010-01-01
+extern string currTime;//=tradingDayT + updateTime
 /**********************************/
 //gap list map
 extern double realTradePrice;//default value is lastPrice
@@ -48,6 +49,7 @@ extern vector<int> upCulmulateList;
 extern vector<int> downCulmulateList;
 extern int amountCanExist;//how many orders can be put in this price
 char tradeDay[64]={'\0'};
+
 //上涨
 extern boost::atomic_int up_culculate;
 //下跌
@@ -424,6 +426,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     //mili-sec haomiao
     //mico-sec weimiao
     //nano-sec namiao
+    currTime = tradingDayT + " " + boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+" "+boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
     if (start_process == 0) {
         return;
     }
@@ -521,7 +524,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     }
     techCls.RunMarketData(pDepthMarketData);
     return;
-    string msg="mainDirection="+techCls.mainDirection+";stgStatus="+techCls.stgStatus+";priceStatus="+techCls.priceStatus;
+    string msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=2;mainDirection="+techCls.mainDirection+";stgStatus="+techCls.stgStatus+";priceStatus="+techCls.priceStatus+";lastPrice="+boost::lexical_cast<string>(lastPrice);
     sendMSG(msg);
     LOG(INFO) << "mainDirection="+techCls.mainDirection+",stgStatus="+techCls.stgStatus+",priceStatus="+techCls.priceStatus+",lastPrice="+boost::lexical_cast<string>(lastPrice)+",15s k line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
     //strategy
@@ -608,6 +611,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
 
                     }
                 }
+            }else{
+                LOG(ERROR)<<"KData_15s.size() is "+boost::lexical_cast<string>(techCls.KData_15s.size())+", not define when status=0.";
             }
         }else if(techCls.stgStatus=="3"){//now first open is ok,not care 15s k line.
             if(techCls.priceStatus=="0"){//just first open happen.

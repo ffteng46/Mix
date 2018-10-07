@@ -26,7 +26,7 @@ void calculate::ATR(vector<Strategy::Kdata> &vectorKData, int look_back_window)
         double t3=abs(vectorKData[vkdSize - 3].closePrice - vectorKData[vkdSize - 2].lowPrice);
         double maxt=max(t1,t2);
         maxt=max(maxt,t3);
-
+        vectorKData[vkdSize - 2].TR = maxt;
     }
     if ((vkdSize-1) >= look_back_window)
     {

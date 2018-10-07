@@ -43,6 +43,7 @@ OrderInfo orderInfo;
 bool testSwitch=false;
 bool isInstrumentInit=false;
 bool recordMSG=true;
+string currTime="";
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list

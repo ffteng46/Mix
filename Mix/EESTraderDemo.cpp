@@ -9,6 +9,7 @@ extern list<WaitForCloseInfo*> longReverseList;//before one normal
 extern list<WaitForCloseInfo*> tmpLongReverseList;//before one normal
 extern HoldPositionInfo userHoldPst;//not real hold position info
 extern bool isInstrumentInit;
+extern string currTime;
 extern bool testSwitch;
 extern Strategy techCls;
 using std::cout;
@@ -815,7 +816,7 @@ void TraderDemo::reqOrderInsert(EES_EnterOrderField* orderField,AdditionOrderInf
             deleteOriOrder(orderField->m_ClientOrderToken);
             //cout<<"1"<<endl;
 
-        }
+        }//[u"报单编号",u"合约名称",u"买卖",u"开平",u"挂单状态",u"信息",u"报单价格",u"报单手数",u"未成交手数",u"成交手数",u"详细状态",u"报单时间",u"成交价格",u"交易所"]
         //委托类操作，使用客户端定义的请求编号格式
         //cout << boost::lexical_cast<string>(iResult);
         //cerr << "--->>> ReqOrderInsert:" << ((iResult == NO_ERROR) ? "成功" : "失败") << endl;
@@ -956,12 +957,15 @@ string getOrderAcceptInfo(EES_OrderAcceptField* pAccept){
 string getNormalOrderAcceptInfo(OrderFieldInfo* pAccept){
     string orderInfo = "";
     orderInfo += "clientOrderToken=" + boost::lexical_cast<string>(pAccept->clientOrderToken) + ";";
-    orderInfo += "Direction=" + boost::lexical_cast<string>(pAccept->Direction) + ";";
-    orderInfo += "m_ClientOrderToken=" + boost::lexical_cast<string>(pAccept->clientOrderToken) + ";";
-    orderInfo += "m_Exchange=" + boost::lexical_cast<string>(pAccept->InstrumentID) + ";";
-    //orderInfo += "m_HedgeFlag=" + boost::lexical_cast<string>(pAccept->) + ";";
-    orderInfo += "m_MarketOrderToken=" + boost::lexical_cast<string>(pAccept->marketOrderToken) + ";";
-    orderInfo += "m_MarketSessionId=" + boost::lexical_cast<string>(pAccept->OrderRef) + ";";
+    orderInfo += "direction=" + boost::lexical_cast<string>(pAccept->Direction) + ";";
+    //orderInfo += "clientOrderToken=" + boost::lexical_cast<string>(pAccept->clientOrderToken) + ";";
+    orderInfo += "instrumentID=" + boost::lexical_cast<string>(pAccept->InstrumentID) + ";";
+    orderInfo += "offsetFlag=" + boost::lexical_cast<string>(pAccept->OffsetFlag) + ";";
+    orderInfo += "marketOrderToken=" + boost::lexical_cast<string>(pAccept->marketOrderToken) + ";";
+    orderInfo += "orderRef=" + boost::lexical_cast<string>(pAccept->clientOrderToken) + ";";
+    orderInfo += "price=" + boost::lexical_cast<string>(pAccept->Price) + ";";
+    orderInfo += "volume=" + boost::lexical_cast<string>(pAccept->tradeVolume) + ";";
+    orderInfo += "volumeTotalOriginal=" + boost::lexical_cast<string>(pAccept->VolumeTotalOriginal) + ";";
     return orderInfo;
 }
 bool isMyOrder_OrderAccept(EES_OrderAcceptField* pAccept,OriginalOrderFieldInfo* &oriOrderField){
@@ -1007,7 +1011,9 @@ void TraderDemo::OnOrderAccept(EES_OrderAcceptField* pAccept){
 
     LOG(INFO) << "SHENGLI:" + getOrderAcceptInfo(pAccept);
     transformFromShengLiPlantformOrder(pAccept,acceptShLiOrderInfo);//transform
-    LOG(INFO) << "change to normal:" + getNormalOrderAcceptInfo(acceptShLiOrderInfo);
+    string tmp=getNormalOrderAcceptInfo(acceptShLiOrderInfo);
+
+    LOG(INFO) << "change to normal:" + tmp;
     {//非撤单，修改报单状态
         if(acceptShLiOrderInfo->OffsetFlag != "0"){//only close position will be locked
             LOG(INFO) << "close order,need lock.";
@@ -1251,7 +1257,9 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     realseInfo->tradeVolume = pExec->m_Quantity;
     realseInfo->openStgType = oriOrderField->openStgType;
     realseInfo->VolumeTotalOriginal = oriOrderField->volumeTotalOriginal;//original order volume
-    string msg = "businessType=wtm_1001;"+getTradeInfo(realseInfo);
+    realseInfo->OrderSysID = oriOrderField->orderSysID;
+    realseInfo->investorID = boost::lexical_cast<string>(pExec->m_Userid);
+    string msg = "businessType=wtm_1001;result=0;updateTime="+currTime+getTradeInfo(realseInfo);
     sendMSG(msg);
     //i known why there is a processing here!close position will minus some volume,so release position must be done before!
     if(realseInfo->OffsetFlag != "0"){
@@ -1541,11 +1549,12 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             coverYourAss();
         }
     }
-    string stg = "businessType=wtm_1001;instrumentID="+realseInfo->InstrumentID+";longAmount="+boost::lexical_cast<string>(userHoldPst.longAmount)+",shortAmount="+boost::lexical_cast<string>(userHoldPst.shortAmount) +",longTotal="+boost::lexical_cast<string>(userHoldPst.longTotalPosition)+",shortTotal="+boost::lexical_cast<string>(userHoldPst.shortTotalPosition)+",longHoldAvgPrice="
+    /*string stg = "businessType=wtm_1001;instrumentID="+realseInfo->InstrumentID+";longAmount="+boost::lexical_cast<string>(userHoldPst.longAmount)+",shortAmount="+boost::lexical_cast<string>(userHoldPst.shortAmount) +",longTotal="+boost::lexical_cast<string>(userHoldPst.longTotalPosition)+",shortTotal="+boost::lexical_cast<string>(userHoldPst.shortTotalPosition)+",longHoldAvgPrice="
             +boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+",shortHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.shortHoldAvgPrice);
+    sendMSG(std);
     LogMsg *logmsg = new LogMsg();
     logmsg->setMsg(stg);
-    networkTradeQueue.push(logmsg);
+    networkTradeQueue.push(logmsg);*/
 }
 bool isNormalTrade(string orderType){
     LOG(INFO) << "isNormalTrade:orderType=" + orderType;
