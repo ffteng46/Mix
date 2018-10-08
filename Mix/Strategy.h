@@ -221,9 +221,11 @@ public:
     int k15sLen=10;
     int k15mLen=10;
     int k15sLenForMean=100;
-    vector<Kdata > KData_15s, KData_30s, KData_1m, KData_10m, KData_15m, KData_1h,KDataMa_15s,allK15sList;						//k线数组
+    vector<Kdata > KData_15s, KData_10s,KData_30s, KData_1m, KData_10m, KData_15m, KData_1h,KDataMa_15s,allK15sList;						//k线数组
     Kdata* trueKData15S;
+    Kdata* trueKData10S;
     Kdata* trueKData15M;
+    Kdata* trueKData10M;
     Kdata* newestData15M;
     //Kdata* lastTwoK;//the last second k line
 

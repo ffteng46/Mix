@@ -26,6 +26,7 @@ extern unordered_map<string, MarketData*> marketdata_map;
 extern boost::recursive_mutex unique_mtx;//unique lock
 extern bool isLogout;
 extern string systemID;//系统编号，每个产品一个编号
+extern char tradingDay[12];
 extern string tradingDayT;//2010-01-01
 extern string currTime;//=tradingDayT + updateTime
 /**********************************/
@@ -523,9 +524,10 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
         }
     }
     techCls.RunMarketData(pDepthMarketData);
-    return;
-    string msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=2;mainDirection="+techCls.mainDirection+";stgStatus="+techCls.stgStatus+";priceStatus="+techCls.priceStatus+";lastPrice="+boost::lexical_cast<string>(lastPrice);
+    //return;
+    string msg="businessType=wtm_6001;tradingDay="+boost::lexical_cast<string>(tradingDay)+";logTime="+currTime + ";logType=2;mainDirection="+techCls.mainDirection+";stgStatus="+techCls.stgStatus+";priceStatus="+techCls.priceStatus+";lastPrice="+boost::lexical_cast<string>(lastPrice);
     sendMSG(msg);
+    return;
     LOG(INFO) << "mainDirection="+techCls.mainDirection+",stgStatus="+techCls.stgStatus+",priceStatus="+techCls.priceStatus+",lastPrice="+boost::lexical_cast<string>(lastPrice)+",15s k line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
     //strategy
     boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
@@ -1411,8 +1413,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
             ";turnover="+boost::lexical_cast<string>(pDepthMarketData->Turnover)+
             ";avgprice=" + boost::lexical_cast<string>(pDepthMarketData->AveragePrice) +
             ";simPrice=" + boost::lexical_cast<string>(simPrice);
-
-    mklogmsg->setMsg(tmpmkdata);
+    //sendMSG(tmpmkdata);
+    //mklogmsg->setMsg(tmpmkdata);
     //networkTradeQueue.push(mklogmsg);
     //LOG(INFO) << tmpmkdata;
     int heatBeatSecond = getTimeInterval(HEARTBEAT, startTime, "s");

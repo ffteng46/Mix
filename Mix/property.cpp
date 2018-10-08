@@ -3584,62 +3584,125 @@ void initGapPriceData(list<string> comOrdersList) {
     /* 每个字段，按照=分隔符进行分割                                        */
     /************************************************************************/
     try {
-        string insComKey = "";
-        double gapPrice = 0;
-        double asOpenGap = 0;
-        double asCloseGap = 0;
-        double dsOpenGap = 0;
-        double dsCloseGap = 0;
+        string timeType="";//"timeType" : "minute
+        string opType = "";
+        int minute=0;
+        int second=0;
+        double ma5 = 0;
+        double ma10 = 0;
+        double ma20 = 0;
+        double macd_diff = 0;
+        double macd_dea = 0;
+        double lowPrice = 0;
+        double highPrice = 0;
+        double openPrice = 0;
+        double closePrice = 0;
+        Strategy::Kdata tmpdata;
         for (list<string>::iterator beg = comOrdersList.begin(); beg != comOrdersList.end(); beg++) {
             string tmpstr = *beg;
             vector<string> vec = split(tmpstr, "=");
-            if ("insComKey" == vec[0]) {
-                insComKey = vec[1];
-            }
-            if ("gapPrice" == vec[0]) {
-                gapPrice = boost::lexical_cast<double>(vec[1]);
-            }
-            if ("asOpenGap" == vec[0]) {
-                asOpenGap = boost::lexical_cast<double>(vec[1]);
-            }
-            if ("asCloseGap" == vec[0]) {
-                asCloseGap = boost::lexical_cast<double>(vec[1]);
-            }
-            if ("dsOpenGap" == vec[0]) {
-                dsOpenGap = boost::lexical_cast<double>(vec[1]);
-            }
-            if ("dsCloseGap" == vec[0]) {
-                dsCloseGap = boost::lexical_cast<double>(vec[1]);
+            if ("timeType" == vec[0]) {//"minute.second
+                timeType = vec[1];
+            }else if ("opType" == vec[0]) {//c:create;u:realtime
+                opType = vec[1];
+            }else if ("minute" == vec[0]) {
+                minute = boost::lexical_cast<int>(vec[1]);
+            }else if ("second" == vec[0]) {
+                second = boost::lexical_cast<int>(vec[1]);
+            }else if ("ma5" == vec[0]) {
+                tmpdata.ma5 = boost::lexical_cast<double>(vec[1]);
+            }else if ("ma10" == vec[0]) {
+                tmpdata.ma10 = boost::lexical_cast<double>(vec[1]);
+            }else if ("ma20" == vec[0]) {
+                tmpdata.ma20 = boost::lexical_cast<double>(vec[1]);
+            }else if ("tr" == vec[0]) {
+                tmpdata.TR = boost::lexical_cast<double>(vec[1]);
+            }else if ("atr" == vec[0]) {
+                tmpdata.ATR = boost::lexical_cast<double>(vec[1]);
+            }else if ("macd_diff" == vec[0]) {
+                tmpdata.macd_diff = boost::lexical_cast<double>(vec[1]);
+            }else if ("macd_dea" == vec[0]) {
+                tmpdata.macd_dea = boost::lexical_cast<double>(vec[1]);
+            }else if ("openPrice" == vec[0]) {
+                tmpdata.openPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("lowPrice" == vec[0]) {
+                tmpdata.lowPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("highPrice" == vec[0]) {
+                tmpdata.highPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("closePrice" == vec[0]) {
+                tmpdata.closePrice = boost::lexical_cast<double>(vec[1]);
             }
         }
-        TechMetric* tm;
-        list<PriceGapMarketData*>* pgDataSeq;
-        unordered_map<string, TechMetric*>::iterator it = techMetricMap.find(insComKey);
-        if (it == techMetricMap.end()) {
-            tm = new TechMetric();
-            pgDataSeq = new list<PriceGapMarketData*>();
-            tm->pgDataSeq = pgDataSeq;
-            techMetricMap[insComKey] = tm;
-        } else {
-            tm = it->second;
-            pgDataSeq = tm->pgDataSeq;
+        if(opType == "c"){
+            if(timeType == "minute"){
+                if(minute == 15){
+                    techCls.KData_15m.insert(techCls.KData_15m.begin(),tmpdata);
+                }else if(minute == 10){
+                    techCls.KData_10m.insert(techCls.KData_10m.begin(),tmpdata);
+                }else{
+                    LOG(ERROR)<<"ERROR:minute techMetric of "+boost::lexical_cast<string>(minute)+" is not define.";
+                }
+            }else if(timeType == "second"){
+                if(second == 15){
+                    techCls.KData_15s.insert(techCls.KData_15s.begin(),tmpdata);
+                }else if(second == 10){
+                    techCls.KData_10s.insert(techCls.KData_10s.begin(),tmpdata);
+                }else{
+                    LOG(ERROR)<<"ERROR:second techMetric of "+boost::lexical_cast<string>(second)+" is not define.";
+                }
+            }else{
+                LOG(ERROR)<<"ERROR:undefined techMetric ,timeType="+timeType;
+            }
+        }else if(opType == "u"){
+            if(timeType == "minute"){
+                if(minute == 15){
+                    techCls.trueKData15M = &tmpdata;
+                }else if(minute == 10){
+                    techCls.trueKData10M = &tmpdata;
+                }else{
+                    LOG(ERROR)<<"ERROR:minute techMetric of "+boost::lexical_cast<string>(minute)+" is not define.";
+                }
+            }else if(timeType == "second"){
+                if(second == 15){
+                    techCls.trueKData15S = &tmpdata;
+                }else if(second == 10){
+                    techCls.trueKData10S = &tmpdata;
+                }else{
+                    LOG(ERROR)<<"ERROR:second techMetric of "+boost::lexical_cast<string>(second)+" is not define.";
+                }
+            }else{
+                LOG(ERROR)<<"ERROR:undefined techMetric ,timeType="+timeType;
+            }
+        }else{
+            LOG(ERROR)<<"ERROR:undefined techMetric ,opType="+opType;
         }
-        PriceGapMarketData* pgmd = new PriceGapMarketData();
-        pgmd->insComKey = insComKey;
-        pgmd->gapPrice = gapPrice;
-        pgmd->asOpenGap = asOpenGap;
-        pgmd->asCloseGap = asCloseGap;
-        pgmd->dsOpenGap = dsOpenGap;
-        pgmd->dsCloseGap = dsCloseGap;
-        pgDataSeq->emplace_back(pgmd);
-    }
-    catch (const runtime_error &re) {
+        if(techCls.KData_15m.size()>0){
+            for(vector<Strategy::Kdata>::iterator it=techCls.KData_15m.begin();it!=techCls.KData_15m.end();it++){
+                Strategy::Kdata kd = *it;
+                string msg="k15m,tr="+boost::lexical_cast<string>(kd.TR);
+                cout<<msg<<endl;
+            }
+        }
+        if(techCls.KData_15s.size()>0){
+            for(vector<Strategy::Kdata>::iterator it=techCls.KData_15s.begin();it!=techCls.KData_15s.end();it++){
+                Strategy::Kdata kd = *it;
+                string msg="k15s,tr="+boost::lexical_cast<string>(kd.TR);
+                cout<<msg<<endl;
+            }
+        }
+
+
+    }catch (const runtime_error &re) {
         cerr << re.what() << endl;
-    }
-    catch (exception* e) {
+    }catch (exception* e) {
         cerr << e->what() << endl;
         LogMsg *logmsg = new LogMsg();
         logmsg->setMsg(e->what());
+        logqueue.push(logmsg);
+    }catch(...){
+        //cerr << e->what() << endl;
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg("ERROR:other exception.!!!");
         logqueue.push(logmsg);
     }
 }
@@ -3931,6 +3994,7 @@ void startStrategy() {
     //isbeginmk = 1;
     if (isbegin == 1) {
         start_process = 1;
+        isTwoStartStrategy=2;
         cout<< "start successfully!start_process=" + boost::lexical_cast<string>(start_process);
     }else{
         cout<< "start failed!start_process=" + boost::lexical_cast<string>(start_process);

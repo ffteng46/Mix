@@ -17,7 +17,7 @@ Strategy::Strategy()
 
 
 	nSec = 0;
-
+    ATR_window = 60;
 	volatility = 0;
 	kBarNum = 15;				//»°15∑÷÷”Kœﬂ£ø
 	
@@ -73,11 +73,30 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
     LOG(INFO)<<"begin .15s k line.";
     if (kIndex_15s == INDEX_15s){
         update_kline(&tickData, KData_15s,false);
+        Kdata* tmpk = &KData_15s[KData_15s.size() - 1];
         genKLine_15S=false;
+        string msg="businessType=wtm_5001;logTime="+currTime + ";ma5="+boost::lexical_cast<string>(tmpk->ma5)+";"
+                + "ma10="+boost::lexical_cast<string>(tmpk->ma10)+";"
+                + "ma20="+boost::lexical_cast<string>(tmpk->ma20)+";"
+                + "tr="+boost::lexical_cast<string>(tmpk->TR)+";"
+                + "atr="+boost::lexical_cast<string>(tmpk->ATR)+";"
+                + "macd_diff="+boost::lexical_cast<string>(tmpk->macd_diff)+";"
+                + "macd_dea="+boost::lexical_cast<string>(tmpk->macd_dea)+";"
+                + "closePrice="+boost::lexical_cast<string>(tmpk->closePrice)+";"
+                + "openPrice="+boost::lexical_cast<string>(tmpk->openPrice)+";"
+                + "highPrice="+boost::lexical_cast<string>(tmpk->highPrice)+";"
+                + "lowPrice="+boost::lexical_cast<string>(tmpk->lowPrice)+";"
+                + "tradingDay="+tradingDay+";"
+                + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
+                + "timeType=second;"
+                + "opType=u;"
+                + "second=15";
+        sendMSG(msg);
     }else if (kIndex_15s != INDEX_15s){
         genKLine_15S=true;//a new k line
         INDEX_15s = kIndex_15s;
         creat_Kline(&tickData, kIndex_15s, KData_15s);
+        run_tech_lib(KData_15s);
         if(KData_15s.size()>=2){
             vector<Kdata >::iterator it=KData_15s.end()-2;
             trueKData15S=&(*it);
@@ -87,6 +106,23 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 techCls.KData_15s.clear();
                 techCls.KData_15s.push_back(tmp);
             }
+            string msg="businessType=wtm_5001;logTime="+currTime + ";ma5="+boost::lexical_cast<string>(trueKData15S->ma5)+";"
+                    + "ma10="+boost::lexical_cast<string>(trueKData15S->ma10)+";"
+                    + "ma20="+boost::lexical_cast<string>(trueKData15S->ma20)+";"
+                    + "tr="+boost::lexical_cast<string>(trueKData15S->TR)+";"
+                    + "atr="+boost::lexical_cast<string>(trueKData15S->ATR)+";"
+                    + "macd_diff="+boost::lexical_cast<string>(trueKData15S->macd_diff)+";"
+                    + "macd_dea="+boost::lexical_cast<string>(trueKData15S->macd_dea)+";"
+                    + "closePrice="+boost::lexical_cast<string>(trueKData15S->closePrice)+";"
+                    + "openPrice="+boost::lexical_cast<string>(trueKData15S->openPrice)+";"
+                    + "highPrice="+boost::lexical_cast<string>(trueKData15S->highPrice)+";"
+                    + "lowPrice="+boost::lexical_cast<string>(trueKData15S->lowPrice)+";"
+                    + "tradingDay="+tradingDay+";"
+                    + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
+                    + "timeType=second;"
+                    + "opType=c;"
+                    + "second=15";
+            sendMSG(msg);
         }
     }/*
     if(beginK15s){
@@ -126,8 +162,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 + "openPrice="+boost::lexical_cast<string>(tmpk->openPrice)+";"
                 + "highPrice="+boost::lexical_cast<string>(tmpk->highPrice)+";"
                 + "lowPrice="+boost::lexical_cast<string>(tmpk->lowPrice)+";"
-                + "tradingDay="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
-                + "updateTime="+tradingDay+";"
+                + "tradingDay="+tradingDay+";"
+                + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                 + "timeType=minute;"
                 + "opType=u;"
                 + "minute=15";
@@ -153,7 +189,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                     + "highPrice="+boost::lexical_cast<string>(trueKData15M->highPrice)+";"
                     + "lowPrice="+boost::lexical_cast<string>(trueKData15M->lowPrice)+";"
                     + "tradingDay="+tradingDay+";"
-                    + "timeType=minute;"
+                    + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                     + "timeType=minute;"
                     + "opType=c;"
                     + "minute=15";

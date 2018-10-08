@@ -393,9 +393,10 @@ void TraderDemo::OnQueryAccountPosition(const char* pAccount, EES_AccountPositio
         //setInitAvaHoldPosition();
         //initNormalMMPosition();
         cout << ">>>>>>>>>>>>if ok,please press Enter!<<<<<<<<<<<<"<< endl;
+        cout << ">>>>>>>>>>>>Ready,please init!<<<<<<<<<<<<"<< endl;
         //reqQryInvestorAccount();
-        getchar();
-        startStrategy();
+        //getchar();
+        //startStrategy();
     }
 }
 void initNormalMMPosition(){

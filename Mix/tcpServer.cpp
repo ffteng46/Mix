@@ -207,7 +207,7 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                 this_thread::yield();
             } else {
                 cout << "length of databody：" << pkg_databodylen << endl;
-                size_t readsize2 = boost::asio::read(*_socket, boost::asio::buffer(recvbuf, pkg_databodylen + 1),error);
+                size_t readsize2 = boost::asio::read(*_socket, boost::asio::buffer(recvbuf, pkg_databodylen),error);
                 //size_t readsize2 = _socket->read_some(boost::asio::buffer(recvbuf, pkg_databodylen), error);
                 //boost::asio::async_read(_socket, boost::asio::buffer(recvbuf, pkg_databodylen), error);
                 if (error == boost::asio::error::eof){
@@ -252,10 +252,10 @@ void simpleAsamble(char *ch) {
         strlist.push_back(p);
         p = strtok(NULL, split); //指向下一个指针
     }
-    if (strlist.size() > 1) {
+    if (strlist.size() > 0) {
         ot = strlist.front();
         optype = atoi(ot.c_str());
-        cout << atoi(ot.c_str()) << endl;
+        cout << atoi(ot.c_str())<<",after="<<boost::lexical_cast<string>(optype) << endl;
         strlist.pop_front();
     }
     if (optype == 100) {
@@ -281,7 +281,11 @@ void simpleAsamble(char *ch) {
     } else if (optype == 113) {//初始化均值数据
         initGapPriceData(strlist);
     }else if (optype == 5001) {//初始化techMetric
-        initGapPriceData(strlist);
+        if(isTwoStartStrategy>0){
+            LOG(INFO)<<"already init.";
+            return;
+        }else
+            initGapPriceData(strlist);
     }
 }
 
