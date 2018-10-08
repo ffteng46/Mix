@@ -64,7 +64,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
     //time_condition(UpdateTime,timecondition);
 
     kIndex_15s = cal_Kindex(h1, m1, s1, 15);			//15秒k
-    kIndex_15m = cal_Kindex(h1, m1, s1, 15);		//15分钟
+    kIndex_15m = cal_Kindex(h1, m1, s1, 900);		//15分钟
 	//kIndex_180 = cal_Kindex(h1, m1, s1, 3600);		//1小时
     //LOG(INFO) << "kIndex_15m="+boost::lexical_cast<string>(kIndex_15m)
     //              +",INDEX_15m="+boost::lexical_cast<string>(INDEX_15m);

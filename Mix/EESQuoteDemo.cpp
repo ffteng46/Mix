@@ -527,7 +527,6 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     //return;
     string msg="businessType=wtm_6001;tradingDay="+boost::lexical_cast<string>(tradingDay)+";logTime="+currTime + ";logType=2;mainDirection="+techCls.mainDirection+";stgStatus="+techCls.stgStatus+";priceStatus="+techCls.priceStatus+";lastPrice="+boost::lexical_cast<string>(lastPrice);
     sendMSG(msg);
-    return;
     LOG(INFO) << "mainDirection="+techCls.mainDirection+",stgStatus="+techCls.stgStatus+",priceStatus="+techCls.priceStatus+",lastPrice="+boost::lexical_cast<string>(lastPrice)+",15s k line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
     //strategy
     boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
