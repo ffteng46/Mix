@@ -6034,6 +6034,7 @@ void sendMSG(string msg){
         LogMsg *logmsg = new LogMsg();
         logmsg->setMsg(msg);
         networkTradeQueue.push(logmsg);
+        LOG(INFO)<< msg;
     }
 }
 string getTradeInfo(OrderFieldInfo* realseInfo){

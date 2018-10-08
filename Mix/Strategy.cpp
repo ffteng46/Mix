@@ -198,9 +198,9 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         }
         //write_record(KData_15m, UpdateTime, kdata15min);
 	}
-    mainDirection="0";
-    beginK15s=true;
-    return;
+    //mainDirection="0";
+    //beginK15s=true;
+    //return;
     if(genKLine_15m&&trueKData15M){
         string msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=diff="+boost::lexical_cast<string>(trueKData15M->macd_diff) +","
                 +"dea="+boost::lexical_cast<string>(trueKData15M->macd_dea) +","

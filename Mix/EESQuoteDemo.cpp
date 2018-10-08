@@ -428,7 +428,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     //mico-sec weimiao
     //nano-sec namiao
     currTime = tradingDayT + " " + boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+" "+boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
-    if (start_process == 0) {
+    if (start_process == 1) {
         return;
     }
     //开始时间
