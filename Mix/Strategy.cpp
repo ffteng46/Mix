@@ -24,15 +24,15 @@ Strategy::Strategy()
 	kPeriod = 60;
     mainDirection="3";
 
-	int INDEX_15s = -10;
-	int INDEX_30s = -10;
-	int INDEX_15m = -10;
-	int INDEX_1h = -10;
+    INDEX_15s = -10;
+    INDEX_30s = -10;
+    INDEX_15m = -10;
+    INDEX_1h = -10;
 
-	int kIndex_15s = -10;						//15 秒
-	int kIndex_30s = -10;;						//30 秒
-	int kIndex_15m = -10;;						//1分钟
-	int kIndex_1h = -10;;
+    kIndex_15s = -10;						//15 秒
+    kIndex_30s = -10;;						//30 秒
+    kIndex_15m = -10;;						//1分钟
+    kIndex_1h = -10;;
 
 
 	// 技术指标
@@ -210,7 +210,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         LOG(INFO) << msg;
         sendMSG(msg);
         if(trueKData15M->macd_dea==0||trueKData15M->ma20==0||trueKData15M->ma10==0){
-            //return;
+            return;
         }
         if(trueKData15M->macd_diff>trueKData15M->macd_dea
                 &&trueKData15M->ma5>trueKData15M->ma20
@@ -218,10 +218,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";"+"logType=1;log=match long strongly condition!current main direction="+mainDirection;
             LOG(INFO) << msg;
             sendMSG(msg);
-            if(testSwitch){
-                mainDirection="0";
-
-            }else if(mainDirection=="02"){//strong->watch->strong
+            if(mainDirection=="02"){//strong->watch->strong
                 Strategy::Kdata* lastTwoK;
                 if(techCls.priceStatus=="10"||techCls.priceStatus=="11"){
                     msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=In last watch status,not find direction.when main direction is set,reset parameter.";

@@ -170,7 +170,7 @@ public:
 
 	int INDEX_15s;
 	int INDEX_30s;
-	int INDEX_15m;
+    int INDEX_15m=-10;
 	int INDEX_1h;
 
 	int kPeriod;						//K线周期 60即为1分钟K线

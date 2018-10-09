@@ -774,10 +774,10 @@ void TraderDemo::Logon(){
         printf("INVALID api object\n");
         return;
     }
-    //cout<<"loginid="<<LOGIN_ID << endl;
-    //cout<<"passwd="<<PASSWORD << endl;
-    //cout<<"login REM ......" << endl;
-    //LOG(ERROR) << "request login shengli plantform......";
+    cout<<"loginid="<<LOGIN_ID << endl;
+    cout<<"passwd="<<PASSWORD << endl;
+    cout<<"login REM ......" << endl;
+    LOG(ERROR) << "request login shengli plantform......";
     //cout<<"investorid="<<INVESTOR_ID << endl;
     int rst = m_tradeApi->UserLogon(LOGIN_ID.c_str(), PASSWORD.c_str(), "TradeDemo", MAC_ADDRESS.c_str());
     if(rst == 0){

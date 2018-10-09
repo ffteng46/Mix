@@ -5743,7 +5743,7 @@ string num2str(double i)
 void computeDualTrustPara(double lastPrice){
     //max(max-close,close-min)
     double range=max(techCls.trueKData15S->highPrice-techCls.trueKData15S->closePrice,techCls.trueKData15S->closePrice-techCls.trueKData15S->lowPrice);
-    range=0;
+    //range=0;
     techCls.limit[0]=lastPrice-techCls.K2*range;
     techCls.limit[1]=lastPrice+techCls.K1*range;
     LOG(INFO) << "Init dual trust parameters.range="+num2str(range)+",low limit="+num2str(techCls.limit[0])+",up limit="+num2str(techCls.limit[1]);
@@ -6034,7 +6034,7 @@ void sendMSG(string msg){
         LogMsg *logmsg = new LogMsg();
         logmsg->setMsg(msg);
         networkTradeQueue.push(logmsg);
-        LOG(INFO)<< msg;
+        //LOG(INFO)<< msg;
     }
 }
 string getTradeInfo(OrderFieldInfo* realseInfo){

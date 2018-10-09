@@ -428,7 +428,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     //mico-sec weimiao
     //nano-sec namiao
     currTime = tradingDayT + " " + boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+" "+boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
-    if (start_process == 1) {
+    if (start_process == 0) {
         return;
     }
     //开始时间
@@ -1323,10 +1323,10 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                 }
             }
             double tmpMax=max(abs(techCls.trueKData15M->highPrice - techCls.trueKData15M->closePrice),abs(techCls.trueKData15M->closePrice - techCls.trueKData15M->lowPrice));
-            //techCls.limit[1]=lastPrice+0.7*tmpMax;
-            //techCls.limit[0]=lastPrice-1*tmpMax;
-            techCls.limit[0]=lastPrice;
-            techCls.limit[1]=lastPrice;
+            techCls.limit[1]=lastPrice+0.7*tmpMax;
+            techCls.limit[0]=lastPrice-1*tmpMax;
+            //techCls.limit[0]=lastPrice;
+            //techCls.limit[1]=lastPrice;
             LOG(INFO)<<"The first tick of long direction watching status,compute dual parameters.limit=["+boost::lexical_cast<string>(techCls.limit[0])+","
                     +boost::lexical_cast<string>(techCls.limit[1])+"]";
             techCls.stgStatus="11";

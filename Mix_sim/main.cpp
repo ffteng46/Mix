@@ -42,7 +42,7 @@ SpecOrderField* sof = new SpecOrderField();
 OrderInfo orderInfo;
 bool testSwitch=false;
 bool isInstrumentInit=false;
-bool recordMSG=false;
+bool recordMSG=true;
 string currTime="";
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval

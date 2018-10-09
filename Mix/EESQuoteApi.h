@@ -1,8 +1,8 @@
-ï»¿/*! 
+/*! 
 * \file  EESQuoteApi.h
-* \brief EESè¡Œæƒ…å®¢æˆ·ç«¯å¤´æ–‡ä»¶
+* \brief EESĞĞÇé¿Í»§¶ËÍ·ÎÄ¼ş
 *  
-* æ­¤æ–‡ä»¶æè¿°äº†ä½¿ç”¨EESè¡Œæƒ…å®¢æˆ·ç«¯æ‰€éœ€çš„ç±»å‹å’Œå‡½æ•°
+* ´ËÎÄ¼şÃèÊöÁËÊ¹ÓÃEESĞĞÇé¿Í»§¶ËËùĞèµÄÀàĞÍºÍº¯Êı
 *  
 * \author  SHENGLI
 * \version 1.0
@@ -23,128 +23,128 @@ using std::vector;
         #define SL_EES_QUOTE_FUN     extern "C" __declspec(dllimport)
     #endif
     
-     /// \brief EESè¡Œæƒ…å®¢æˆ·ç«¯åŠ¨æ€åº“å
+     /// \brief EESĞĞÇé¿Í»§¶Ë¶¯Ì¬¿âÃû
     #define EES_QUOTE_DLL_NAME    "EESQuoteApi.dll"
-    /// \brief EESè¡Œæƒ…å®¢æˆ·ç«¯é™æ€åº“å
+    /// \brief EESĞĞÇé¿Í»§¶Ë¾²Ì¬¿âÃû
     #define EES_QUOTE_LIB_NAME    "EESQuoteApi.lib"
     
 #else // SHENGLI_LINUX
     #define SL_EES_QUOTE_CLASS 
     #define SL_EES_QUOTE_FUN extern "C"
     
-    /// \brief EESè¡Œæƒ…å®¢æˆ·ç«¯åŠ¨æ€åº“å
+    /// \brief EESĞĞÇé¿Í»§¶Ë¶¯Ì¬¿âÃû
     #define EES_QUOTE_DLL_NAME    "libEESQuoteApi.so"
 #endif
 
-/// \brief EES Quoteéœ€è¦æ³¨å†Œçš„å›è°ƒç±» 
+/// \brief EES QuoteĞèÒª×¢²áµÄ»Øµ÷Àà 
 class EESQuoteEvent
 {
 public:
     virtual ~EESQuoteEvent() {}
 
-	/// \brief å½“æœåŠ¡å™¨è¿æ¥æˆåŠŸï¼Œç™»å½•å‰è°ƒç”¨, å¦‚æœæ˜¯ç»„æ’­æ¨¡å¼ä¸ä¼šå‘ç”Ÿ, åªéœ€åˆ¤æ–­InitMulticastè¿”å›å€¼å³å¯
+	/// \brief µ±·şÎñÆ÷Á¬½Ó³É¹¦£¬µÇÂ¼Ç°µ÷ÓÃ, Èç¹ûÊÇ×é²¥Ä£Ê½²»»á·¢Éú, Ö»ĞèÅĞ¶ÏInitMulticast·µ»ØÖµ¼´¿É
     virtual void OnEqsConnected() {}
 
-	/// \brief å½“æœåŠ¡å™¨æ›¾ç»è¿æ¥æˆåŠŸï¼Œè¢«æ–­å¼€æ—¶è°ƒç”¨ï¼Œç»„æ’­æ¨¡å¼ä¸ä¼šå‘ç”Ÿè¯¥äº‹ä»¶
+	/// \brief µ±·şÎñÆ÷Ôø¾­Á¬½Ó³É¹¦£¬±»¶Ï¿ªÊ±µ÷ÓÃ£¬×é²¥Ä£Ê½²»»á·¢Éú¸ÃÊÂ¼ş
     virtual void OnEqsDisconnected() {}
 
-	/// \brief å½“ç™»å½•æˆåŠŸæˆ–è€…å¤±è´¥æ—¶è°ƒç”¨ï¼Œç»„æ’­æ¨¡å¼ä¸ä¼šå‘ç”Ÿ
-	/// \param bSuccess ç™»é™†æ˜¯å¦æˆåŠŸæ ‡å¿—  
-	/// \param pReason  ç™»é™†å¤±è´¥åŸå›   
+	/// \brief µ±µÇÂ¼³É¹¦»òÕßÊ§°ÜÊ±µ÷ÓÃ£¬×é²¥Ä£Ê½²»»á·¢Éú
+	/// \param bSuccess µÇÂ½ÊÇ·ñ³É¹¦±êÖ¾  
+	/// \param pReason  µÇÂ½Ê§°ÜÔ­Òò  
     virtual void OnLoginResponse(bool bSuccess, const char* pReason) {}
 
-	/// \brief æ”¶åˆ°è¡Œæƒ…æ—¶è°ƒç”¨,å…·ä½“æ ¼å¼æ ¹æ®instrument_typeä¸åŒè€Œä¸åŒ
-	/// \param chInstrumentType  EESè¡Œæƒ…ç±»å‹
-	/// \param pDepthQuoteData   EESç»Ÿä¸€è¡Œæƒ…æŒ‡é’ˆ  
+	/// \brief ÊÕµ½ĞĞÇéÊ±µ÷ÓÃ,¾ßÌå¸ñÊ½¸ù¾İinstrument_type²»Í¬¶ø²»Í¬
+	/// \param chInstrumentType  EESĞĞÇéÀàĞÍ
+	/// \param pDepthQuoteData   EESÍ³Ò»ĞĞÇéÖ¸Õë  
     virtual void OnQuoteUpdated(EesEqsIntrumentType chInstrumentType, EESMarketDepthQuoteData* pDepthQuoteData) {}
 
-	/// \brief æ—¥å¿—æ¥å£ï¼Œè®©ä½¿ç”¨è€…å¸®åŠ©å†™æ—¥å¿—ã€‚
-	/// \param nlevel    æ—¥å¿—çº§åˆ«
-	/// \param pLogText  æ—¥å¿—å†…å®¹
-	/// \param nLogLen   æ—¥å¿—é•¿åº¦
+	/// \brief ÈÕÖ¾½Ó¿Ú£¬ÈÃÊ¹ÓÃÕß°ïÖúĞ´ÈÕÖ¾¡£
+	/// \param nlevel    ÈÕÖ¾¼¶±ğ
+	/// \param pLogText  ÈÕÖ¾ÄÚÈİ
+	/// \param nLogLen   ÈÕÖ¾³¤¶È
     virtual void OnWriteTextLog(EesEqsLogLevel nlevel, const char* pLogText, int nLogLen) {}
 
-	/// \brief æ³¨å†Œsymbolå“åº”æ¶ˆæ¯æ¥æ—¶è°ƒç”¨ï¼Œç»„æ’­æ¨¡å¼ä¸æ”¯æŒè¡Œæƒ…æ³¨å†Œ
-	/// \param chInstrumentType  EESè¡Œæƒ…ç±»å‹
-	/// \param pSymbol           åˆçº¦åç§°
-	/// \param bSuccess          æ³¨å†Œæ˜¯å¦æˆåŠŸæ ‡å¿—
+	/// \brief ×¢²ásymbolÏìÓ¦ÏûÏ¢À´Ê±µ÷ÓÃ£¬×é²¥Ä£Ê½²»Ö§³ÖĞĞÇé×¢²á
+	/// \param chInstrumentType  EESĞĞÇéÀàĞÍ
+	/// \param pSymbol           ºÏÔ¼Ãû³Æ
+	/// \param bSuccess          ×¢²áÊÇ·ñ³É¹¦±êÖ¾
     virtual void OnSymbolRegisterResponse(EesEqsIntrumentType chInstrumentType, const char* pSymbol, bool bSuccess)  {}
 
-	/// \brief  æ³¨é”€symbolå“åº”æ¶ˆæ¯æ¥æ—¶è°ƒç”¨ï¼Œç»„æ’­æ¨¡å¼ä¸æ”¯æŒè¡Œæƒ…æ³¨å†Œ
-	/// \param chInstrumentType  EESè¡Œæƒ…ç±»å‹
-	/// \param pSymbol           åˆçº¦åç§°
-	/// \param bSuccess          æ³¨å†Œæ˜¯å¦æˆåŠŸæ ‡å¿—
+	/// \brief  ×¢ÏúsymbolÏìÓ¦ÏûÏ¢À´Ê±µ÷ÓÃ£¬×é²¥Ä£Ê½²»Ö§³ÖĞĞÇé×¢²á
+	/// \param chInstrumentType  EESĞĞÇéÀàĞÍ
+	/// \param pSymbol           ºÏÔ¼Ãû³Æ
+	/// \param bSuccess          ×¢²áÊÇ·ñ³É¹¦±êÖ¾
     virtual void OnSymbolUnregisterResponse(EesEqsIntrumentType chInstrumentType, const char* pSymbol, bool bSuccess)  {}
 	
-	/// \brief æŸ¥è¯¢symbolåˆ—è¡¨å“åº”æ¶ˆæ¯æ¥æ—¶è°ƒç”¨ï¼Œç»„æ’­æ¨¡å¼ä¸æ”¯æŒåˆçº¦åˆ—è¡¨æŸ¥è¯¢
-	/// \param chInstrumentType  EESè¡Œæƒ…ç±»å‹
-	/// \param pSymbol           åˆçº¦åç§°
-	/// \param bLast             æœ€åä¸€æ¡æŸ¥è¯¢åˆçº¦åˆ—è¡¨æ¶ˆæ¯çš„æ ‡è¯†
-	/// \remark æŸ¥è¯¢åˆçº¦åˆ—è¡¨å“åº”, last = trueæ—¶ï¼Œæœ¬æ¡æ•°æ®æ˜¯æ— æ•ˆæ•°æ®ã€‚
+	/// \brief ²éÑ¯symbolÁĞ±íÏìÓ¦ÏûÏ¢À´Ê±µ÷ÓÃ£¬×é²¥Ä£Ê½²»Ö§³ÖºÏÔ¼ÁĞ±í²éÑ¯
+	/// \param chInstrumentType  EESĞĞÇéÀàĞÍ
+	/// \param pSymbol           ºÏÔ¼Ãû³Æ
+	/// \param bLast             ×îºóÒ»Ìõ²éÑ¯ºÏÔ¼ÁĞ±íÏûÏ¢µÄ±êÊ¶
+	/// \remark ²éÑ¯ºÏÔ¼ÁĞ±íÏìÓ¦, last = trueÊ±£¬±¾ÌõÊı¾İÊÇÎŞĞ§Êı¾İ¡£
     virtual void OnSymbolListResponse(EesEqsIntrumentType chInstrumentType, const char* pSymbol, bool bLast)  {}
 
 };
 
-/// \brief EES Quoteçš„çº¯è™šåŸºç±»
+/// \brief EES QuoteµÄ´¿Ğé»ùÀà
 class SL_EES_QUOTE_CLASS EESQuoteApi
 {
 public:
     virtual ~EESQuoteApi() {}
 
-	/// \brief  EESè¡Œæƒ…å®¢æˆ·ç«¯è¿æ¥è¡Œæƒ…æœåŠ¡å™¨, ä¸å¯ä»¥å’ŒInitMulticaståŒæ—¶ä½¿ç”¨
-	/// \param  vecEti             ä¸€ç»„EESè¡Œæƒ…æœåŠ¡å™¨çš„é…ç½®    
-	/// \param  pQuoteEventHandler ç›¸å…³äº‹ä»¶é€šçŸ¥çš„å›è°ƒå‡½æ•°
-	/// \return true: è¿æ¥EESè¡Œæƒ…æœåŠ¡å™¨æˆåŠŸ false:è¿æ¥EESè¡Œæƒ…æœåŠ¡å™¨å¤±è´¥
+	/// \brief  EESĞĞÇé¿Í»§¶ËÁ¬½ÓĞĞÇé·şÎñÆ÷, ²»¿ÉÒÔºÍInitMulticastÍ¬Ê±Ê¹ÓÃ
+	/// \param  vecEti             Ò»×éEESĞĞÇé·şÎñÆ÷µÄÅäÖÃ    
+	/// \param  pQuoteEventHandler Ïà¹ØÊÂ¼şÍ¨ÖªµÄ»Øµ÷º¯Êı
+	/// \return true: Á¬½ÓEESĞĞÇé·şÎñÆ÷³É¹¦ false:Á¬½ÓEESĞĞÇé·şÎñÆ÷Ê§°Ü
     virtual bool ConnServer(vector<EqsTcpInfo>& vecEti, EESQuoteEvent* pQuoteEventHandler) = 0;
 
-	/// \brief  EESè¡Œæƒ…å®¢æˆ·ç«¯åŠ å…¥ç»„æ’­åœ°å€, ä¸å¯ä»¥å’ŒConneServeråŒæ—¶ä½¿ç”¨
-	/// \param  vecEti             ä¸€ç»„EESè¡Œæƒ…æœåŠ¡å™¨çš„é…ç½®    
-	/// \param  pQuoteEventHandler ç›¸å…³äº‹ä»¶é€šçŸ¥çš„å›è°ƒå‡½æ•°
-	/// \return true: è¿æ¥EESè¡Œæƒ…æœåŠ¡å™¨æˆåŠŸ false:è¿æ¥EESè¡Œæƒ…æœåŠ¡å™¨å¤±è´¥
+	/// \brief  EESĞĞÇé¿Í»§¶Ë¼ÓÈë×é²¥µØÖ·, ²»¿ÉÒÔºÍConneServerÍ¬Ê±Ê¹ÓÃ
+	/// \param  vecEti             Ò»×éEESĞĞÇé·şÎñÆ÷µÄÅäÖÃ    
+	/// \param  pQuoteEventHandler Ïà¹ØÊÂ¼şÍ¨ÖªµÄ»Øµ÷º¯Êı
+	/// \return true: Á¬½ÓEESĞĞÇé·şÎñÆ÷³É¹¦ false:Á¬½ÓEESĞĞÇé·şÎñÆ÷Ê§°Ü
 	virtual bool InitMulticast(vector<EqsMulticastInfo>& vecEmi, EESQuoteEvent* pQuoteEventHandler) = 0; 
 
-	/// \brief  EESè¡Œæƒ…å®¢æˆ·ç«¯ç™»é™†æœåŠ¡å™¨è¯·æ±‚, ä½¿ç”¨ç»„æ’­æ¨¡å¼ä¸éœ€è¦è°ƒç”¨
-	/// \param  loginParam   ç™»é™†æ—¶æ‰€ç”¨çš„ç”¨æˆ·å’Œå¯†ç    
-	/// \remark æ­¤å‡½æ•°æ— è¿”å›ç , ç™»é™†æˆåŠŸä¸å¦ä¼šåœ¨ç™»é™†å“åº”çš„å›è°ƒä¸­é€šçŸ¥
+	/// \brief  EESĞĞÇé¿Í»§¶ËµÇÂ½·şÎñÆ÷ÇëÇó, Ê¹ÓÃ×é²¥Ä£Ê½²»ĞèÒªµ÷ÓÃ
+	/// \param  loginParam   µÇÂ½Ê±ËùÓÃµÄÓÃ»§ºÍÃÜÂë   
+	/// \remark ´Ëº¯ÊıÎŞ·µ»ØÂë, µÇÂ½³É¹¦Óë·ñ»áÔÚµÇÂ½ÏìÓ¦µÄ»Øµ÷ÖĞÍ¨Öª
     virtual void LoginToEqs(EqsLoginParam& loginParam) = 0;
 
-	/// \brief  å‘EESè¡Œæƒ…æœåŠ¡å™¨è¯·æ±‚åˆçº¦åˆ—è¡¨, ç»„æ’­æ¨¡å¼ä¸æ”¯æŒ
+	/// \brief  ÏòEESĞĞÇé·şÎñÆ÷ÇëÇóºÏÔ¼ÁĞ±í, ×é²¥Ä£Ê½²»Ö§³Ö
     virtual void QuerySymbolList() = 0;
 
-	/// \brief  EESè¡Œæƒ…å®¢æˆ·ç«¯æ³¨å†Œåˆçº¦, ç»„æ’­æ¨¡å¼ä¸æ”¯æŒ
-	/// \param  chInstrumentType  EESè¡Œæƒ…ç±»å‹  
-	/// \param  pSymbol           åˆçº¦åç§°
-	/// \remark æ­¤å‡½æ•°æ— è¿”å›ç , æ³¨å†ŒæˆåŠŸä¸å¦ä¼šåœ¨æ³¨å†Œå“åº”çš„å›è°ƒä¸­é€šçŸ¥
+	/// \brief  EESĞĞÇé¿Í»§¶Ë×¢²áºÏÔ¼, ×é²¥Ä£Ê½²»Ö§³Ö
+	/// \param  chInstrumentType  EESĞĞÇéÀàĞÍ  
+	/// \param  pSymbol           ºÏÔ¼Ãû³Æ
+	/// \remark ´Ëº¯ÊıÎŞ·µ»ØÂë, ×¢²á³É¹¦Óë·ñ»áÔÚ×¢²áÏìÓ¦µÄ»Øµ÷ÖĞÍ¨Öª
     virtual void RegisterSymbol(EesEqsIntrumentType chInstrumentType, const char* pSymbol) = 0;
 
-	/// \brief  EESè¡Œæƒ…å®¢æˆ·ç«¯æ³¨å†Œåˆçº¦, ç»„æ’­æ¨¡å¼ä¸æ”¯æŒ
-	/// \param  chInstrumentType  EESè¡Œæƒ…ç±»å‹  
-	/// \param  pSymbol           åˆçº¦åç§°
-	/// \return æ­¤å‡½æ•°æ— è¿”å›ç , æ³¨é”€æˆåŠŸä¸å¦ä¼šåœ¨æ³¨é”€å“åº”çš„å›è°ƒä¸­é€šçŸ¥
+	/// \brief  EESĞĞÇé¿Í»§¶Ë×¢²áºÏÔ¼, ×é²¥Ä£Ê½²»Ö§³Ö
+	/// \param  chInstrumentType  EESĞĞÇéÀàĞÍ  
+	/// \param  pSymbol           ºÏÔ¼Ãû³Æ
+	/// \return ´Ëº¯ÊıÎŞ·µ»ØÂë, ×¢Ïú³É¹¦Óë·ñ»áÔÚ×¢ÏúÏìÓ¦µÄ»Øµ÷ÖĞÍ¨Öª
     virtual void UnregisterSymbol(EesEqsIntrumentType chInstrumentType, const char* pSymbol) = 0;
 
-	/// \brief å…³é—­EESè¡Œæƒ…å®¢æˆ·ç«¯
-	/// \remark æ‰§è¡Œæ­¤å‡½æ•°åæœªå®ä¾‹å†…éƒ¨ä¿¡æ¯é”€æ¯,å¦‚æœéœ€è¦ç»§ç»­ä½¿ç”¨,éœ€è¦å°†å®ä¾‹é”€æ¯å,é‡æ–°åˆ›å»ºå®ä¾‹
+	/// \brief ¹Ø±ÕEESĞĞÇé¿Í»§¶Ë
+	/// \remark Ö´ĞĞ´Ëº¯ÊıºóÎ´ÊµÀıÄÚ²¿ĞÅÏ¢Ïú»Ù,Èç¹ûĞèÒª¼ÌĞøÊ¹ÓÃ,ĞèÒª½«ÊµÀıÏú»Ùºó,ÖØĞÂ´´½¨ÊµÀı
     virtual void DisConnServer() = 0;
 };
 
 
-/// \brief åˆ›å»ºEESè¡Œæƒ…å®¢æˆ·ç«¯å®ä¾‹çš„å‡½æ•°å
+/// \brief ´´½¨EESĞĞÇé¿Í»§¶ËÊµÀıµÄº¯ÊıÃû
 #define CREATE_EES_QUOTE_API_NAME   ("CreateEESQuoteApi")
 
-/// \brief é”€æ¯EESè¡Œæƒ…å®¢æˆ·ç«¯å®ä¾‹çš„å‡½æ•°å
+/// \brief Ïú»ÙEESĞĞÇé¿Í»§¶ËÊµÀıµÄº¯ÊıÃû
 #define DESTROY_EES_QUOTE_API_NAME  ("DestroyEESQuoteApi")
 
-/// \brief åˆ›å»ºEESè¡Œæƒ…å®¢æˆ·ç«¯å®ä¾‹çš„å‡½æ•°å£°æ˜
+/// \brief ´´½¨EESĞĞÇé¿Í»§¶ËÊµÀıµÄº¯ÊıÉùÃ÷
 SL_EES_QUOTE_FUN EESQuoteApi* CreateEESQuoteApi(void);
 
-/// \brief é”€æ¯EESè¡Œæƒ…å®¢æˆ·ç«¯å®ä¾‹çš„å‡½æ•°å£°æ˜
+/// \brief Ïú»ÙEESĞĞÇé¿Í»§¶ËÊµÀıµÄº¯ÊıÉùÃ÷
 SL_EES_QUOTE_FUN void DestroyEESQuoteApi(EESQuoteApi* pEESQuoteApi);
 
-/// \brief åˆ›å»ºEESè¡Œæƒ…å®¢æˆ·ç«¯å®ä¾‹çš„å‡½æ•°æŒ‡é’ˆç±»å‹
+/// \brief ´´½¨EESĞĞÇé¿Í»§¶ËÊµÀıµÄº¯ÊıÖ¸ÕëÀàĞÍ
 typedef EESQuoteApi* (*funcCreateEESQuoteApi)(void);
 
-/// \brief é”€æ¯EESè¡Œæƒ…å®¢æˆ·ç«¯å®ä¾‹çš„å‡½æ•°æŒ‡é’ˆç±»å‹
+/// \brief Ïú»ÙEESĞĞÇé¿Í»§¶ËÊµÀıµÄº¯ÊıÖ¸ÕëÀàĞÍ
 typedef void (*funcDestroyEESQuoteApi)(EESQuoteApi* pEESQuoteApi);
 
 

@@ -14,7 +14,7 @@
 #include <string.h>
 
 
-#define SL_EES_API_VERSION    "3.1.1.38"				///<  api版本号
+#define SL_EES_API_VERSION    "2.0.2.36"				///<  api版本号
 
 typedef int RESULT;										///< 定义返回值 
 typedef int ERR_NO;										///< 定义错误值 
@@ -166,8 +166,25 @@ struct EES_LogonResponse
 	EES_UserID			m_UserId;							///< 登录名对应的用户ID
 	unsigned int		m_TradingDate;						///< 交易日，格式为yyyyMMdd的int型值
 	EES_ClientToken		m_MaxToken;							///< 以前的最大 token 
+	unsigned int		m_OrderFCCount;						///< 下单流控参数，单位时间内下单次数限制的次数
+	unsigned int		m_OrderFCInterval;					///< 下单流控参数，单位时间内下单次数限制单位时间，微秒值
+	unsigned int		m_CancelFCCount;					///< 撤单流控参数，单位时间内撤单次数限制的次数
+	unsigned int		m_CancelFCInterval;					///< 撤单流控参数，单位时间内撤单次数限制单位时间，微秒值
 };
-
+class AdditionOrderInfo{
+public:
+    std::string instrumentID;
+    std::string direction;
+    std::string offsetFlag;
+    double orderInsertPrice;
+    int volume;
+    std::string orderType;
+    std::string mkType;
+    unsigned int clientOrderToken;
+    std::string function;
+    std::string timeFlag="0";
+    std::string openStgType="0";
+};
 
 /// 下单消息
 struct EES_EnterOrderField
@@ -232,8 +249,6 @@ struct EES_OrderMarketAcceptField
 	EES_MarketToken   m_MarketOrderToken; ///< 盛立系统产生的单子号，和盛立交流时可用该号。
 	EES_MarketOrderId m_MarketOrderId;    ///< 市场订单号
 	EES_Nanosecond    m_MarketTime;       ///< 市场时间信息
-	EES_UserID        m_UserID;			  ///< 订单的 user id 
-	EES_ClientToken   m_ClientOrderToken; ///< 下单的时候，返回给你的token
 };
 
 /// 下单被柜台系统拒绝
@@ -249,20 +264,7 @@ struct EES_OrderRejectField
 	EES_GrammerResultText	m_GrammerText;		///< 语法检查的结果文字描述
 	EES_RiskResultText		m_RiskText;			///< 风控检查的结果文字描述			
 };
-class AdditionOrderInfo{
-public:
-    std::string instrumentID;
-    std::string direction;
-    std::string offsetFlag;
-    double orderInsertPrice;
-    int volume;
-    std::string orderType;
-    std::string mkType;
-    unsigned int clientOrderToken;
-    std::string function;
-    std::string timeFlag="0";
-    std::string openStgType="0";
-};
+
 /// 下单被市场拒绝
 struct EES_OrderMarketRejectField
 {
@@ -270,8 +272,6 @@ struct EES_OrderMarketRejectField
 	EES_MarketToken m_MarketOrderToken;	 ///< 盛立系统产生的单子号，和盛立交流时可用该号。
 	EES_Nanosecond  m_MarketTimestamp;   ///< 市场时间信息, 从1970年1月1日0时0分0秒开始的纳秒时间，请使用ConvertFromTimestamp接口转换为可读的时间
 	EES_ReasonText  m_ReasonText;      
-	EES_UserID      m_UserID;			  ///< 订单的 user id 
-	EES_ClientToken m_ClientOrderToken; ///< 下单的时候，返回给你的token
 };
 
 /// 订单成交消息体
@@ -539,24 +539,6 @@ struct EES_MarketMBLData
 	unsigned char		m_IsBid;						///< 1: 买方行情，0:卖方行情
 };
 
-struct EES_TradeSvrInfo
-{
-	char            m_remoteTradeIp[16];  /// 服务器交易IP
-	unsigned short  m_remoteTradeTCPPort; /// 服务器交易TCP端口
-	unsigned short  m_remoteTradeUDPPort; /// 服务器交易UDP端口
-
-	char            m_remoteQueryIp[16];  /// 服务器查询IP
-	unsigned short  m_remoteQueryTCPPort; /// 服务器查询TCP端口
-
-	char            m_LocalTradeIp[16];   /// 本地交易IP
-	unsigned short  m_LocalTradeUDPPort;  /// 本地交易UDP端口
-
-	EES_TradeSvrInfo()
-	{
-		memset((void*)this, 0, sizeof(EES_TradeSvrInfo));
-	}
-};
-
 #pragma pack(pop)
 
 // 以下为 EES_OrderRejectField::m_ReasonCode的取值说明，委托被拒绝是用于说明拒绝原因
@@ -585,8 +567,6 @@ struct EES_TradeSvrInfo
 //	20	资金账号未正确配置交易所编码
 //	21	m_MinQty的值超过了m_Qty
 //	22	当所有交易所连接都处于断开状态时，拒绝报单
-//  23	当前账户没有期权交易权限
-//	24	登录用户与连接session不符
 	
 
 // 50- 116由风控拒绝造成，
