@@ -25,10 +25,13 @@
 #include <string.h>
 #include "Strategy.h"
 #include "calculate.h"
+#include "LockFreeQueue2.h"
 //using namespace std;
 
 #define BUFFER_SIZE 1024
+
 using namespace std;
+using namespace LOCK_FREE;
 //CTechMetric ctm;
 Strategy techCls;
 calculate cal;
@@ -44,6 +47,9 @@ bool testSwitch=false;
 bool isInstrumentInit=false;
 bool recordMSG=true;
 string currTime="";
+typedef ArrayLockFreeQueue<EESMarketDepthQuoteData,	MULTI_THREAD_FALSE, MULTI_THREAD_FALSE>	ArrayDataQueue;
+ArrayDataQueue queue;			// the queue for recved data from socket
+pthread_t pid;
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list

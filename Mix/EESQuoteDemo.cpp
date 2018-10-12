@@ -427,7 +427,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     //mili-sec haomiao
     //mico-sec weimiao
     //nano-sec namiao
-    currTime = tradingDayT + " " + boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+" "+boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
+    currTime = string(tradingDay) + " " + boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+" "+boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
     if (start_process == 0) {
         return;
     }
@@ -912,11 +912,17 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                 if(stopProfit("0",lastPrice,instrumentID)){//
                     LOG(INFO)<<"long reverse is stopping profit,not process.";
                 }else{
-                    //stop profit order not all traded,then first order action
-                    cancelSpecTypeOrder(instrumentID,"2001");
+
                     WaitForCloseInfo* wfc_firstOpen;//the first order
                     WaitForCloseInfo* wfc_lastOpen;//the last order
                     WaitForCloseInfo* wfc_lastSecondOpen;//the last second order
+                    wfc_lastOpen=tmpLongReverseList.back();
+                    if(lastPrice >= wfc_lastOpen->openPrice){
+                        LOG(INFO)<<"athso in Fibonacci state,but will not insert order,so if there are stop profit orders not traded,not care.";
+                    }else{
+                        //stop profit order not all traded,then first order action
+                        cancelSpecTypeOrder(instrumentID,"2001");
+                    }
                     int existGrades = (tmpLongReverseList.size() - techCls.oneNormalGrade);
                     LOG(INFO)<<"Current grade for two is "+boost::lexical_cast<string>(existGrades)
                                +",and the limit grade is "+boost::lexical_cast<string>(techCls.twoGrade);
@@ -972,7 +978,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                             break;
                         }
                     }
-                    wfc_lastOpen=tmpLongReverseList.back();
+
                     if(existGrades < techCls.twoGrade){
                         if(int((wfc_firstOpen->openPrice - lastPrice)/tickPrice)%techCls.twoGap==0){
                             LOG(INFO)<<"This price is at two gap,judge if add new order.";

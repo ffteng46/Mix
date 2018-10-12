@@ -226,7 +226,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
     }
 
     if(genKLine_15m&&trueKData15M){
-        string msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=diff="+boost::lexical_cast<string>(trueKData15M->macd_diff) +","
+        string msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=diff="+boost::lexical_cast<string>(trueKData15M->macd_diff) +","
                 +"dea="+boost::lexical_cast<string>(trueKData15M->macd_dea) +","
                 +"ma5="+boost::lexical_cast<string>(trueKData15M->ma5) +","
                 +"ma10="+boost::lexical_cast<string>(trueKData15M->ma10) +","
@@ -234,18 +234,18 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         LOG(INFO) << msg;
         sendMSG(msg);
         if(trueKData15M->macd_dea==0||trueKData15M->ma20==0||trueKData15M->ma10==0){
-            //return;
+            return;
         }
         if(trueKData15M->macd_diff>trueKData15M->macd_dea
                 &&trueKData15M->ma5>trueKData15M->ma20
                 &&trueKData15M->ma10>trueKData15M->ma20){//main direction is long
-            msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";"+"logType=1;log=match long strongly condition!current main direction="+mainDirection;
+            msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";"+"logType=1;log=match long strongly condition!current main direction="+mainDirection;
             LOG(INFO) << msg;
             sendMSG(msg);
             if(mainDirection=="02"){//strong->watch->strong
                 Strategy::Kdata* lastTwoK;
                 if(techCls.priceStatus=="10"||techCls.priceStatus=="11"){
-                    msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=In last watch status,not find direction.when main direction is set,reset parameter.";
+                    msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=In last watch status,not find direction.when main direction is set,reset parameter.";
                     LOG(INFO)<<msg;
                     sendMSG(msg);
                     coverYourAss();
@@ -255,13 +255,13 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                     lastTwoK=&(*it);
                     if(trueKData15M->closePrice > lastTwoK->closePrice){//Kn+1>Kn,resume to long
                         mainDirection="0";
-                        msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=before mainDirection =02,this k's close price="+boost::lexical_cast<string>(trueKData15M->closePrice)
+                        msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=before mainDirection =02,this k's close price="+boost::lexical_cast<string>(trueKData15M->closePrice)
                                 +" is bigger than last k's close price="+boost::lexical_cast<string>(lastTwoK->closePrice)
                                 +",change maindir to 0!";
                         LOG(INFO) <<msg;
                         sendMSG(msg);
                     }else{
-                        msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=before mainDirection =02,this k's close price="+boost::lexical_cast<string>(trueKData15M->closePrice)
+                        msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=before mainDirection =02,this k's close price="+boost::lexical_cast<string>(trueKData15M->closePrice)
                                 +" is not bigger than last k's close price="+boost::lexical_cast<string>(lastTwoK->closePrice)
                                 //+",remain watching!";
                                +",reset direction to 3!";
@@ -271,7 +271,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                         resetK15sData();
                     }
                 }else{
-                    msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=15m k line is less than 2,don't process! size="+boost::lexical_cast<string>(KData_15m.size());
+                    msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=15m k line is less than 2,don't process! size="+boost::lexical_cast<string>(KData_15m.size());
                     LOG(INFO) << msg;
                     sendMSG(msg);
                 }
@@ -281,25 +281,25 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 beginK15s=true;
                 doKcleanS(KData_15s);
                 //KData_15s.clear();
-                msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=change main direciton from 3 to 0.begin to compute 15s k line,current 15s k line size is "
+                msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=change main direciton from 3 to 0.begin to compute 15s k line,current 15s k line size is "
                         +boost::lexical_cast<string>(KData_15s.size());
                 LOG(INFO) <<msg;
                 sendMSG(msg);
             }else{
                 if(mainDirection == "12"){
-                    msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=direction change from 12 to 0 directly.should close all position,and start from 0 point?";
+                    msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=direction change from 12 to 0 directly.should close all position,and start from 0 point?";
                     LOG(INFO)<<msg;
                     sendMSG(msg);
                     mainDirection="0";
                     beginK15s=true;
                     doKcleanS(KData_15s);
                     //KData_15s.clear();
-                    msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=change main direciton from 12 to 0;begin to compute 15s k line,current 15s k line size is "
+                    msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=change main direciton from 12 to 0;begin to compute 15s k line,current 15s k line size is "
                             +boost::lexical_cast<string>(KData_15s.size());
                     LOG(INFO) << msg;
                     sendMSG(msg);
                 }else{
-                    msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=change main direciton from "+mainDirection+"to 0!";
+                    msg="businessType=wtm_6001;tradingDay="+string(tradingDay)+";logTime="+currTime + ";logType=1;log=change main direciton from "+mainDirection+"to 0!";
                     LOG(INFO) << msg;
                     sendMSG(msg);
                     mainDirection="0";
@@ -399,7 +399,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 LOG(INFO) << "change main dir from 1 to "+mainDirection+",begin to watch.";
             }
         }
-        string tmpmsg="businessType=wtm_1003;tradingDay="+tradingDayT+";logTime="+currTime + ";mainDirection="+techCls.mainDirection;
+        string tmpmsg="businessType=wtm_1003;tradingDay="+string(tradingDay)+";logTime="+currTime + ";mainDirection="+techCls.mainDirection;
         sendMSG(tmpmsg);
     }
 }
