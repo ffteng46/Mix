@@ -3,6 +3,7 @@
 //#include "TraderSpi.h"
 #include "property.h"
 #include "EESTraderDemo.h"
+#include "EESQuoteDemo.h"
 #include "TimeProcesser.h"
 #include <iostream>
 #include <sstream>
@@ -16,6 +17,7 @@
 #include <glog/logging.h>
 #include <boost/thread/recursive_mutex.hpp>
 using namespace std;
+extern boost::recursive_mutex mkdata_mtx;
 extern HoldPositionInfo userHoldPst;//not real hold position info
 extern list<WaitForCloseInfo*> protectList;//protect order list
 extern list<WaitForCloseInfo*> allTradeList;//before one normal
@@ -27,6 +29,8 @@ extern OrderInfo orderInfo;
 extern SpecOrderField* sof;
 extern bool recordMSG;
 extern string currTime;
+extern QuoteDemo* pQuoteApi;
+extern vector<EESMarketDepthQuoteData*> allMk;
 /*****************************marketdata*/
 //gap list map
 extern unordered_map<string, HoldPositionInfo*> normalMMPositionmap;
@@ -146,8 +150,7 @@ extern boost::recursive_mutex priceGap_mtx;
 //extern boost::recursive_mutex arbVolume_mtx;//套利组合单数量的gap
 extern boost::recursive_mutex queryPst_mtx;//查询各种持仓
 extern boost::recursive_mutex techMetric_mtx;//技术指标
-//行情锁
-boost::recursive_mutex mkdata_mtx;
+
 extern boost::recursive_mutex pstDetail_mtx;//持仓明细
 extern boost::recursive_mutex pstDetailDB_mtx;//持仓明细
 extern int isTwoStartStrategy;//等于2的时候，表示明细和汇总持仓查询完毕，启动系统
@@ -1956,6 +1959,7 @@ void tryAllOrderAction(string instrumentID){
             clOrder.m_Quantity = 0;
             clOrder.m_MarketOrderToken = marketOrderToken;
             ptradeApi->reqOrderAction(&clOrder);
+
             string tmporder = getCancleOrderInfo(&clOrder);
             LOG(INFO) << "direct action;order action=" + tmporder;
         }else if(oriOrderField->instrumentID == instrumentID){
@@ -1967,6 +1971,7 @@ void tryAllOrderAction(string instrumentID){
             clOrder.m_Quantity = 0;
             clOrder.m_MarketOrderToken = marketOrderToken;
             ptradeApi->reqOrderAction(&clOrder);
+
             string tmporder = getCancleOrderInfo(&clOrder);
             LOG(INFO) << "direct action;order action=" + tmporder;
         }
@@ -1999,6 +2004,7 @@ void tryOrderAction(string instrumentID,OrderInfo* orderInfo,string actionType){
         clOrder.m_Quantity = 0;
         clOrder.m_MarketOrderToken = marketOrderToken;
         ptradeApi->reqOrderAction(&clOrder);
+
         string tmporder = getCancleOrderInfo(&clOrder);
         LOG(INFO) << "direct action;order action=" + tmporder;
     }else if(actionType == "2"){
@@ -2031,14 +2037,6 @@ string getCancleOrderInfo(EES_CancelOrder  *clOrder){
 //addition info used for feed back
 void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,double orderInsertPrice,int volume,string mkType, AdditionOrderInfo* addinfo){
     //string instrumentID = boost::lexical_cast<string>(pDepthMarketData->InstrumentID);
-    //this will be removed when product
-    if(volume==5){
-        if(offsetFlag=="0"){
-            volume=6;
-        }else{
-            volume=4;
-        }
-    }
     unsigned int newOrderToken = ++iOrderRef;
     double price = orderInsertPrice;
     unsigned char m_side = 0;
@@ -2138,8 +2136,18 @@ void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,dou
     //"investorID":datamap.get("investorID"),"instrumentID":datamap.get("instrumentID"),"orderRef":datamap.get("orderRef")
     string msg="businessType=wtm_1002;updateTime="+currTime+";opType=c;"+getOrderInfo(orderInfo);
     sendMSG(msg);
+}
+void doKcleanS(vector<Strategy::Kdata > &vectorKData){
+    if(vectorKData.size()>0){
+        Strategy::Kdata tmp=vectorKData.back();
+        vectorKData.clear();
+        vectorKData.push_back(tmp);
+    }
 
 }
+
+
+
 void processAverageGapGprice(TradeFieldInfo *pTrade) {
     ///买卖方向
     string	direction = pTrade->Direction;
@@ -3588,15 +3596,8 @@ void initGapPriceData(list<string> comOrdersList) {
         string opType = "";
         int minute=0;
         int second=0;
-        double ma5 = 0;
-        double ma10 = 0;
-        double ma20 = 0;
-        double macd_diff = 0;
-        double macd_dea = 0;
-        double lowPrice = 0;
-        double highPrice = 0;
-        double openPrice = 0;
-        double closePrice = 0;
+        int kIndex=0;
+        int index=0;
         Strategy::Kdata tmpdata;
         for (list<string>::iterator beg = comOrdersList.begin(); beg != comOrdersList.end(); beg++) {
             string tmpstr = *beg;
@@ -3631,22 +3632,34 @@ void initGapPriceData(list<string> comOrdersList) {
                 tmpdata.highPrice = boost::lexical_cast<double>(vec[1]);
             }else if ("closePrice" == vec[0]) {
                 tmpdata.closePrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("kIndex" == vec[0]) {
+                kIndex = boost::lexical_cast<int>(vec[1]);
+            }else if ("index" == vec[0]) {
+                index = boost::lexical_cast<int>(vec[1]);
             }
         }
         if(opType == "c"){
             if(timeType == "minute"){
                 if(minute == 15){
                     techCls.KData_15m.insert(techCls.KData_15m.begin(),tmpdata);
+                    techCls.kIndex_15m=kIndex;
+                    techCls.INDEX_15m=index;
                 }else if(minute == 10){
                     techCls.KData_10m.insert(techCls.KData_10m.begin(),tmpdata);
+                    techCls.kIndex_10m=kIndex;
+                    techCls.INDEX_10m=index;
                 }else{
                     LOG(ERROR)<<"ERROR:minute techMetric of "+boost::lexical_cast<string>(minute)+" is not define.";
                 }
             }else if(timeType == "second"){
                 if(second == 15){
-                    techCls.KData_15s.insert(techCls.KData_15s.begin(),tmpdata);
+                    techCls.allK15sList.insert(techCls.allK15sList.begin(),tmpdata);
+                    techCls.kIndex_15s=kIndex;
+                    techCls.INDEX_15s=index;
                 }else if(second == 10){
                     techCls.KData_10s.insert(techCls.KData_10s.begin(),tmpdata);
+                    techCls.kIndex_10s=kIndex;
+                    techCls.INDEX_10s=index;
                 }else{
                     LOG(ERROR)<<"ERROR:second techMetric of "+boost::lexical_cast<string>(second)+" is not define.";
                 }
@@ -3656,17 +3669,29 @@ void initGapPriceData(list<string> comOrdersList) {
         }else if(opType == "u"){
             if(timeType == "minute"){
                 if(minute == 15){
-                    techCls.trueKData15M = &tmpdata;
+                    techCls.KData_15m.push_back(tmpdata);
+                    techCls.trueKData15M=&techCls.KData_15m[techCls.KData_15m.size() - 2];
+                    techCls.kIndex_15m=kIndex;
+                    techCls.INDEX_15m=index;
                 }else if(minute == 10){
-                    techCls.trueKData10M = &tmpdata;
+                    techCls.KData_10m.push_back(tmpdata);
+                    techCls.trueKData10M=&techCls.KData_10m[techCls.KData_10m.size() - 2];
+                    techCls.kIndex_10m=kIndex;
+                    techCls.INDEX_10m=index;
                 }else{
                     LOG(ERROR)<<"ERROR:minute techMetric of "+boost::lexical_cast<string>(minute)+" is not define.";
                 }
             }else if(timeType == "second"){
                 if(second == 15){
-                    techCls.trueKData15S = &tmpdata;
+                    techCls.allK15sList.push_back(tmpdata);
+                    techCls.trueKData15S=&techCls.allK15sList[techCls.allK15sList.size() - 2];
+                    techCls.kIndex_15s=kIndex;
+                    techCls.INDEX_15s=index;
                 }else if(second == 10){
-                    techCls.trueKData10S = &tmpdata;
+                    techCls.KData_10s.push_back(tmpdata);
+                    techCls.trueKData10S=&techCls.KData_10s[techCls.KData_10s.size() - 2];
+                    techCls.kIndex_10s=kIndex;
+                    techCls.INDEX_10s=index;
                 }else{
                     LOG(ERROR)<<"ERROR:second techMetric of "+boost::lexical_cast<string>(second)+" is not define.";
                 }
@@ -3679,19 +3704,158 @@ void initGapPriceData(list<string> comOrdersList) {
         if(techCls.KData_15m.size()>0){
             for(vector<Strategy::Kdata>::iterator it=techCls.KData_15m.begin();it!=techCls.KData_15m.end();it++){
                 Strategy::Kdata kd = *it;
-                string msg="k15m,tr="+boost::lexical_cast<string>(kd.TR);
+                string msg="k15m,tr="+boost::lexical_cast<string>(kd.TR)+",lastPrice="+boost::lexical_cast<string>(kd.closePrice)
+                        +",ma5="+boost::lexical_cast<string>(kd.ma5)
+                        +",ma10="+boost::lexical_cast<string>(kd.ma10)
+                        +",ma20="+boost::lexical_cast<string>(kd.ma20);
                 cout<<msg<<endl;
             }
         }
-        if(techCls.KData_15s.size()>0){
-            for(vector<Strategy::Kdata>::iterator it=techCls.KData_15s.begin();it!=techCls.KData_15s.end();it++){
+        if(techCls.allK15sList.size()>0){
+            for(vector<Strategy::Kdata>::iterator it=techCls.allK15sList.begin();it!=techCls.allK15sList.end();it++){
                 Strategy::Kdata kd = *it;
-                string msg="k15s,tr="+boost::lexical_cast<string>(kd.TR);
+                string msg="k15s,tr="+boost::lexical_cast<string>(kd.TR)+",lastPrice="+boost::lexical_cast<string>(kd.closePrice)
+                        +",ma5="+boost::lexical_cast<string>(kd.ma5)
+                        +",ma10="+boost::lexical_cast<string>(kd.ma10)
+                        +",ma20="+boost::lexical_cast<string>(kd.ma20);
                 cout<<msg<<endl;
             }
         }
+        if(techCls.trueKData15S){
+            string tmpmsg="curr,k15s,lastprice"+boost::lexical_cast<string>(techCls.trueKData15S->closePrice);
+            cout<<tmpmsg<<endl;
+        }
+        if(techCls.trueKData15M){
+            string tmpmsg="curr,k15m,lastprice"+boost::lexical_cast<string>(techCls.trueKData15M->closePrice);
+            cout<<tmpmsg<<endl;
+        }
 
 
+    }catch (const runtime_error &re) {
+        cerr << re.what() << endl;
+    }catch (exception* e) {
+        cerr << e->what() << endl;
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg(e->what());
+        logqueue.push(logmsg);
+    }catch(...){
+        //cerr << e->what() << endl;
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg("ERROR:other exception.!!!");
+        logqueue.push(logmsg);
+    }
+}
+void initTrueData(Strategy::Kdata *trueData,Strategy::Kdata &sourData){
+    trueData->ATR=sourData.ATR;
+    trueData->closePrice=sourData.closePrice;
+    trueData->highPrice=sourData.highPrice;
+}
+
+void initInfrastructure(list<string> comOrdersList){
+    /************************************************************************/
+    /* 每个字段，按照=分隔符进行分割                                        */
+    /************************************************************************/
+    try {
+        for (list<string>::iterator beg = comOrdersList.begin(); beg != comOrdersList.end(); beg++) {
+            string tmpstr = *beg;
+            vector<string> vec = split(tmpstr, "=");
+            if ("totalDates" == vec[0]) {//"minute.second
+                techCls.totalDates = boost::lexical_cast<int>(vec[1]);
+                techCls.setPreTotalSecs(techCls.totalDates);
+                cout<<"INIT INFRASTRUCTURE DATA:totalDates="<<techCls.totalDates<<endl;
+            }else if ("mainDirection" == vec[0]) {//"minute.second
+                techCls.mainDirection = vec[1];
+                cout<<"INIT INFRASTRUCTURE DATA:mainDirection="<<techCls.mainDirection<<endl;
+            }
+        }
+    }catch (const runtime_error &re) {
+        cerr << re.what() << endl;
+    }catch (exception* e) {
+        cerr << e->what() << endl;
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg(e->what());
+        logqueue.push(logmsg);
+    }catch(...){
+        //cerr << e->what() << endl;
+        LogMsg *logmsg = new LogMsg();
+        logmsg->setMsg("ERROR:other exception.!!!");
+        logqueue.push(logmsg);
+    }
+}
+
+void initMarketData(list<string> comOrdersList) {
+    boost::recursive_mutex::scoped_lock SLock4(mkdata_mtx);//锁定
+    /************************************************************************/
+    /* 每个字段，按照=分隔符进行分割                                        */
+    /************************************************************************/
+    try {
+        EESMarketDepthQuoteData* pDepthMarketData = new EESMarketDepthQuoteData();
+        //memset(pDepthMarketData,0,sizeof(EESMarketDepthQuoteData));
+        string tradingDay="20181009";
+        strcpy(pDepthMarketData->TradingDay,tradingDay.c_str());
+        string instrumentID;
+        string            UpdateTime;      ///<最后修改时间
+        for (list<string>::iterator beg = comOrdersList.begin(); beg != comOrdersList.end(); beg++) {
+            string tmpstr = *beg;
+            vector<string> vec = split(tmpstr, "=");
+            if ("InstrumentID" == vec[0]) {//"minute.second
+                instrumentID = vec[1];
+                strcpy(pDepthMarketData->InstrumentID,instrumentID.c_str());
+            }else if ("LastPrice" == vec[0]) {//c:create;u:realtime
+                pDepthMarketData->LastPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("PreSettlementPrice" == vec[0]) {
+                pDepthMarketData->PreSettlementPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("PreClosePrice" == vec[0]) {
+                pDepthMarketData->PreClosePrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("PreOpenInterest" == vec[0]) {
+                pDepthMarketData->PreOpenInterest = boost::lexical_cast<int>(vec[1]);
+            }else if ("OpenPrice" == vec[0]) {
+                pDepthMarketData->OpenPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("HighestPrice" == vec[0]) {
+                pDepthMarketData->HighestPrice = boost::lexical_cast<double>(vec[1]);
+                pDepthMarketData->UpperLimitPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("LowestPrice" == vec[0]) {
+                pDepthMarketData->LowestPrice = boost::lexical_cast<double>(vec[1]);
+                pDepthMarketData->LowerLimitPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("Volume" == vec[0]) {
+                pDepthMarketData->Volume = boost::lexical_cast<int>(vec[1]);
+            }else if ("turnover" == vec[0]) {
+                pDepthMarketData->Turnover = boost::lexical_cast<double>(vec[1]);
+            }else if ("OpenInterest" == vec[0]) {
+                pDepthMarketData->OpenInterest = boost::lexical_cast<int>(vec[1]);
+            }else if ("ClosePrice" == vec[0]) {
+                pDepthMarketData->ClosePrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("SettlementPrice" == vec[0]) {
+                pDepthMarketData->SettlementPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("UpperLimitPrice" == vec[0]) {
+                pDepthMarketData->UpperLimitPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("LowerLimitPrice" == vec[0]) {
+                pDepthMarketData->LowerLimitPrice = boost::lexical_cast<double>(vec[1]);
+            }else if ("UpdateTime" == vec[0]) {
+                UpdateTime = vec[1];
+                strcpy(pDepthMarketData->UpdateTime,UpdateTime.c_str());
+            }else if ("UpdateMillisec" == vec[0]) {
+                pDepthMarketData->UpdateMillisec = boost::lexical_cast<int>(vec[1]);
+            }else if ("BidPrice1" == vec[0]) {
+                pDepthMarketData->BidPrice1 = boost::lexical_cast<double>(vec[1]);
+            }else if ("AskPrice1" == vec[0]) {
+                pDepthMarketData->AskPrice1 = boost::lexical_cast<double>(vec[1]);
+            }else if ("BidVolume1" == vec[0]) {
+                pDepthMarketData->BidVolume1 = boost::lexical_cast<int>(vec[1]);
+            }else if ("AskVolume1" == vec[0]) {
+                pDepthMarketData->AskVolume1 = boost::lexical_cast<int>(vec[1]);
+            }
+        }
+        unordered_map<string, InstrumentInfo*>::iterator ins_it = instruments.find(instrumentID);
+        if (ins_it == instruments.end()) {
+            InstrumentInfo* info = new InstrumentInfo();
+            info->PriceTick = 1;
+            info->instrumentID = instrumentID;
+            info->VolumeMultiple = 10;
+            instruments[instrumentID] = info;
+        }
+        //allMk.push_back(pDepthMarketData);
+        //pQuoteApi->ShowQuoteSim(pDepthMarketData);
     }catch (const runtime_error &re) {
         cerr << re.what() << endl;
     }catch (exception* e) {
@@ -5899,6 +6063,7 @@ void processOtherOpen(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPs
             LOG(INFO) << "Find first order,change volume from "+boost::lexical_cast<string>(wfcInfo->tradeVolume)+" to "
                               +boost::lexical_cast<string>(wfcInfo->tradeVolume+realseInfo->tradeVolume);
             wfcInfo->tradeVolume += realseInfo->tradeVolume;
+            wfcInfo->openPrice = realseInfo->Price;
             thingFound = true;
             break;
         }else{
@@ -6068,15 +6233,20 @@ void coverYourAss(){
     techCls.KData_15s.clear();
     techCls.KData_15s.push_back(tmp);
     LOG(INFO)<<"current k 15s line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
+    closeProtectOrders();
+}
+void closeProtectOrders(){
     if(protectList.size()>0){
         LOG(INFO)<<"All long order has been closed.If there are protect order, protect order's task is over.";
         int tmpVol=0;
         string instrumentID;
         double upperPrice=0;
+        string direction;
         for(list<WaitForCloseInfo*>::iterator wfIT = protectList.begin();wfIT != protectList.end();wfIT++){
             WaitForCloseInfo* wfc = *wfIT;
             tmpVol += wfc->tradeVolume;
             instrumentID = wfc->instrumentID;
+            direction = wfc->direction;
             if(upperPrice == 0){
                 upperPrice = wfc->openPrice;
             }
@@ -6092,15 +6262,24 @@ void coverYourAss(){
         }
         AdditionOrderInfo* addinfo=new AdditionOrderInfo();
         addinfo->openStgType="closeP";
-        addNewOrderTrade(instrumentID,"0","1",upperPrice,tmpVol,"0",addinfo);
+        if(direction == "0"){
+            addNewOrderTrade(instrumentID,"1","1",upperPrice,tmpVol,"0",addinfo);
+        }else{
+            addNewOrderTrade(instrumentID,"0","1",upperPrice,tmpVol,"0",addinfo);
+        }
+
         protectList.clear();
     }else{
         LOG(INFO)<<"there are not protect order,not process.";
     }
 }
+
 void lockInit(){
     techCls.minPrice=0;
     techCls.maxPrice=0;
+    techCls.isAddOrderOpen=false;
+    techCls.relockPrice=0;
+    techCls.additionMinPrice=0;
 }
 
 void resetK15sData(){
@@ -6113,4 +6292,68 @@ void resetK15sData(){
     }
 
 }
+void setRelockPrice(double lastPrice,double tickPrice,string direction){
+    if(direction == "0"){//current maindirection is long direction
+        if(techCls.additionMinPrice == 0){
+            techCls.additionMinPrice = lastPrice;
+            LOG(INFO)<<"begin to initialize additionMinPrice="+boost::lexical_cast<string>(techCls.additionMinPrice);
+        }else if(techCls.additionMinPrice > lastPrice){
+            double tmprice=techCls.additionMinPrice;
+            techCls.additionMinPrice = lastPrice;
+            LOG(INFO)<<"Price become even more lower,set minPrice from "+boost::lexical_cast<string>(tmprice)+" to "
+                       +boost::lexical_cast<string>( techCls.additionMinPrice);
+        }
+        double tmpRelockPrice = lastPrice-techCls.relockTickNums*tickPrice;
+        double tmprp = techCls.relockPrice;
+        if(techCls.relockPrice==0){
+            techCls.relockPrice = tmpRelockPrice;
+            LOG(INFO)<<"current direction is "+direction+ ",relockTickNums="+boost::lexical_cast<string>(techCls.relockTickNums)+",and set relockPrice from "
+                       +boost::lexical_cast<string>(tmprp)+" to "+boost::lexical_cast<string>(techCls.relockPrice);
+        }else if(techCls.relockPrice > tmpRelockPrice){
+            techCls.relockPrice = tmpRelockPrice;
+            LOG(INFO)<<"current direction is "+direction+",relockTickNums="+boost::lexical_cast<string>(techCls.relockTickNums)+",and set relockPrice from "
+                       +boost::lexical_cast<string>(tmprp)+" to "+boost::lexical_cast<string>(techCls.relockPrice);
+        }else{
+            LOG(INFO)<<"current direction is "+direction+",relockTickNums="+boost::lexical_cast<string>(techCls.relockTickNums)+",and relockPrice remain "
+                       +boost::lexical_cast<string>(techCls.relockPrice);
+        }
+    }else if(direction == "1"){
+        double tmpRelockPrice = lastPrice+techCls.relockTickNums*tickPrice;
+        double tmprp = techCls.relockPrice;
+        if(techCls.relockPrice==0){
+            techCls.relockPrice = tmpRelockPrice;
+            LOG(INFO)<<"current direction is "+direction+",relockTickNums="+boost::lexical_cast<string>(techCls.relockTickNums)+",and set relockPrice from "
+                       +boost::lexical_cast<string>(tmprp)+" to "+boost::lexical_cast<string>(techCls.relockPrice);
+        }else if(techCls.relockPrice < tmpRelockPrice){
+            techCls.relockPrice = tmpRelockPrice;
+            LOG(INFO)<<"current direction is "+direction+",relockTickNums="+boost::lexical_cast<string>(techCls.relockTickNums)+",and set relockPrice from "
+                       +boost::lexical_cast<string>(tmprp)+" to "+boost::lexical_cast<string>(techCls.relockPrice);
+        }else{
+            LOG(INFO)<<"current direction is "+direction+",relockTickNums="+boost::lexical_cast<string>(techCls.relockTickNums)+",and relockPrice remain "
+                       +boost::lexical_cast<string>(techCls.relockPrice);
+        }
+    }else{
+        LOG(ERROR)<<"ERROR:undefined direction type = "+direction;
+    }
 
+}
+int getFBNAOrderVolume(list<WaitForCloseInfo*> &orderList,string direction){
+    int hopeVolume=0;
+    if(orderList.size()>=2){
+        int tmpR=0;
+        for(list<WaitForCloseInfo*>::reverse_iterator wfit=orderList.rbegin();wfit != orderList.rend();wfit++){
+            WaitForCloseInfo*  wfc_order = *wfit;
+            if(wfc_order->direction == direction){
+                tmpR+=1;
+                hopeVolume+=wfc_order->tradeVolume;
+            }
+            if(tmpR==2){
+                break;
+            }
+        }
+
+    }else{
+        LOG(ERROR)<<"order list size is "+ boost::lexical_cast<string>(orderList.size())+",is less than 2.";
+    }
+    return hopeVolume;
+}

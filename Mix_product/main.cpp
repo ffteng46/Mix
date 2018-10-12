@@ -238,6 +238,12 @@ void mkdataInit();
 void testlist();
 recursive_mutex g_lock_ti;//tradeinfo lock
 recursive_mutex g_lock_log;//log lock
+//vector<string> split(string str, string pattern);
+//DWORD WINAPI sendByClient(LPVOID lpparameter);          //客户端方式发送
+//DWORD WINAPI sendByServer(LPVOID lpparameter);          //客户端方式发送
+///for test
+vector<EESMarketDepthQuoteData*> allMk;
+int mkAmount=0;
 //行情锁
 boost::recursive_mutex mkdata_mtx;
 void startSendMDThread(int sendtype);//发送类型 0：以客户端方式发送；1，以服务端方式发送
@@ -257,19 +263,13 @@ int main(){
         //isInTimePeriod(mkTimePeriod);
         boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     }
+    //pQuoteApi=new QuoteDemo();
     datainit();
     testlist();
     //getchar();
     //system("pause");
     //tradeinit();//交易
     startSendMDThread(1);
-    mkdataInit();//行情
-    //boost::this_thread::sleep(boost::posix_time::seconds(2));
-    ptradeApi = new TraderDemo();
-    //TraderDemo tmd;
-    ptradeApi->Run();
-    // 初始化UserApi
-
     while(1){
         boost::this_thread::sleep(boost::posix_time::seconds(1000));    //microsecond,millisecn
     }

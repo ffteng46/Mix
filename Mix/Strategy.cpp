@@ -16,12 +16,12 @@ Strategy::Strategy()
     //QueryPerformanceFrequency(&m_nFreq);
 
 
-	nSec = 0;
+    nSec = 0;
     ATR_window = 60;
-	volatility = 0;
-	kBarNum = 15;				//取15分钟K线？
-	
-	kPeriod = 60;
+    volatility = 0;
+    kBarNum = 15;				//取15分钟K线？
+
+    kPeriod = 60;
     mainDirection="3";
 
     INDEX_15s = -10;
@@ -34,16 +34,17 @@ Strategy::Strategy()
     kIndex_15m = -10;;						//1分钟
     kIndex_1h = -10;;
 
+    //trueKData15S = new Kdata();
+    //trueKData15M = new Kdata();
+    // 技术指标
+    //ta_result = {0};
+    //result_15 = {0};
+    //result_1m = { 0 };
+    //result_1h = {0};
 
-	// 技术指标
-	//ta_result = {0};
-	//result_15 = {0};
-	//result_1m = { 0 };
-	//result_1h = {0};
 
 
 
-	
 }
 
 Strategy::~Strategy()
@@ -55,25 +56,31 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
 {
     string instrumentID=pDepthMarketData->InstrumentID;
     memcpy(&tickData, pDepthMarketData, sizeof(EESMarketDepthQuoteData));
-	//QueryPerformanceCounter(&currentTime);
-	//cout << "start cal !!!!!!!!!!!" << endl;
+    //QueryPerformanceCounter(&currentTime);
+    //cout << "start cal !!!!!!!!!!!" << endl;
 
-	int h1, m1, s1;
-	sscanf(pDepthMarketData->UpdateTime, "%d:%d:%d", &h1, &m1, &s1);
-	UpdateTime = h1 * 10000 + m1 * 100 + s1 * 1;
+    int h1, m1, s1;
+    sscanf(pDepthMarketData->UpdateTime, "%d:%d:%d", &h1, &m1, &s1);
+    UpdateTime = h1 * 10000 + m1 * 100 + s1 * 1;
     //time_condition(UpdateTime,timecondition);
-
-    kIndex_15s = cal_Kindex(h1, m1, s1, 15);			//15秒k
-    kIndex_15m = cal_Kindex(h1, m1, s1, 900);		//15分钟
-	//kIndex_180 = cal_Kindex(h1, m1, s1, 3600);		//1小时
+    LOG(INFO)<<"BEFORE:kIndex_15s="+boost::lexical_cast<string>(kIndex_15s)+",kIndex_15m="+boost::lexical_cast<string>(kIndex_15m);
+    kIndex_15s = cal_Kindex(h1, m1, s1, techCls.periodSecOne);			//15秒k
+    kIndex_15m = cal_Kindex(h1, m1, s1, 60*techCls.periodMinOne);		//15分钟
+    if(kIndex_15s==-1||kIndex_15m==-1){
+        LOG(ERROR)<<"ERROR:input time is error.!!!";
+        return;
+    }
+    LOG(INFO)<<"AFTER:kIndex_15s="+boost::lexical_cast<string>(kIndex_15s)+",kIndex_15m="+boost::lexical_cast<string>(kIndex_15m);
+    LOG(INFO)<<"BEFORE:INDEX_15s="+boost::lexical_cast<string>(INDEX_15s)+",INDEX_15m="+boost::lexical_cast<string>(INDEX_15m);
+    //kIndex_180 = cal_Kindex(h1, m1, s1, 3600);		//1小时
     //LOG(INFO) << "kIndex_15m="+boost::lexical_cast<string>(kIndex_15m)
     //              +",INDEX_15m="+boost::lexical_cast<string>(INDEX_15m);
     //////////////////////all 15s k line////////////////////
     ///////////////
     LOG(INFO)<<"begin .15s k line.";
     if (kIndex_15s == INDEX_15s){
-        update_kline(&tickData, KData_15s,false);
-        Kdata* tmpk = &KData_15s[KData_15s.size() - 1];
+        update_kline(&tickData, allK15sList,false);
+        Kdata* tmpk = &allK15sList[allK15sList.size() - 1];
         genKLine_15S=false;
         string msg="businessType=wtm_5001;logTime="+currTime + ";ma5="+boost::lexical_cast<string>(tmpk->ma5)+";"
                 + "ma10="+boost::lexical_cast<string>(tmpk->ma10)+";"
@@ -87,6 +94,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 + "highPrice="+boost::lexical_cast<string>(tmpk->highPrice)+";"
                 + "lowPrice="+boost::lexical_cast<string>(tmpk->lowPrice)+";"
                 + "tradingDay="+tradingDay+";"
+                + "kIndex="+boost::lexical_cast<string>(kIndex_15s)+";"
+                + "index="+boost::lexical_cast<string>(INDEX_15s)+";"
                 + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                 + "timeType=second;"
                 + "opType=u;"
@@ -95,16 +104,18 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
     }else if (kIndex_15s != INDEX_15s){
         genKLine_15S=true;//a new k line
         INDEX_15s = kIndex_15s;
-        creat_Kline(&tickData, kIndex_15s, KData_15s);
-        run_tech_lib(KData_15s);
-        if(KData_15s.size()>=2){
-            vector<Kdata >::iterator it=KData_15s.end()-2;
+        creat_Kline(&tickData, kIndex_15s, allK15sList);
+        run_tech_lib(allK15sList);
+
+        if(allK15sList.size()>=2){
+            vector<Kdata >::iterator it=allK15sList.end()-2;
             trueKData15S=&(*it);
-            allK15sList.push_back((*it));
+            KData_15s.push_back(allK15sList[allK15sList.size()-1]);
             if(!beginK15s){
-                Kdata tmp=techCls.KData_15s.back();
-                techCls.KData_15s.clear();
-                techCls.KData_15s.push_back(tmp);
+                doKcleanS(KData_15s);
+                //Kdata tmp=techCls.KData_15s.back();
+                //techCls.KData_15s.clear();
+                //techCls.KData_15s.push_back(tmp);
             }
             string msg="businessType=wtm_5001;logTime="+currTime + ";ma5="+boost::lexical_cast<string>(trueKData15S->ma5)+";"
                     + "ma10="+boost::lexical_cast<string>(trueKData15S->ma10)+";"
@@ -118,6 +129,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                     + "highPrice="+boost::lexical_cast<string>(trueKData15S->highPrice)+";"
                     + "lowPrice="+boost::lexical_cast<string>(trueKData15S->lowPrice)+";"
                     + "tradingDay="+tradingDay+";"
+                    + "kIndex="+boost::lexical_cast<string>(kIndex_15s)+";"
+                    + "index="+boost::lexical_cast<string>(INDEX_15s)+";"
                     + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                     + "timeType=second;"
                     + "opType=c;"
@@ -146,16 +159,16 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             }
         }
     }*/
-
-
-	if (kIndex_15m == INDEX_15m)
-	{
+    if (kIndex_15m == INDEX_15m)
+    {
         update_kline(&tickData, KData_15m,true);
         genKLine_15m=false;
         Kdata* tmpk = &KData_15m[KData_15m.size() - 1];
         string msg="businessType=wtm_5001;logTime="+currTime + ";ma5="+boost::lexical_cast<string>(tmpk->ma5)+";"
                 + "ma10="+boost::lexical_cast<string>(tmpk->ma10)+";"
                 + "ma20="+boost::lexical_cast<string>(tmpk->ma20)+";"
+                + "tr="+boost::lexical_cast<string>(tmpk->TR)+";"
+                + "atr="+boost::lexical_cast<string>(tmpk->ATR)+";"
                 + "macd_diff="+boost::lexical_cast<string>(tmpk->macd_diff)+";"
                 + "macd_dea="+boost::lexical_cast<string>(tmpk->macd_dea)+";"
                 + "closePrice="+boost::lexical_cast<string>(tmpk->closePrice)+";"
@@ -163,15 +176,17 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 + "highPrice="+boost::lexical_cast<string>(tmpk->highPrice)+";"
                 + "lowPrice="+boost::lexical_cast<string>(tmpk->lowPrice)+";"
                 + "tradingDay="+tradingDay+";"
+                + "kIndex="+boost::lexical_cast<string>(kIndex_15m)+";"
+                + "index="+boost::lexical_cast<string>(INDEX_15m)+";"
                 + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                 + "timeType=minute;"
                 + "opType=u;"
                 + "minute=15";
         sendMSG(msg);
         //LOG(INFO)<<msg;
-	}else if (kIndex_15m != INDEX_15m){
+    }else if (kIndex_15m != INDEX_15m){
         genKLine_15m=true;
-		INDEX_15m = kIndex_15m;
+        INDEX_15m = kIndex_15m;
         creat_Kline(&tickData, kIndex_15m, KData_15m);
         run_tech_lib(KData_15m);
         newestData15M=&(KData_15m[KData_15m.size()-1]);
@@ -182,6 +197,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             string msg="businessType=wtm_5001;logTime="+currTime + ";ma5="+boost::lexical_cast<string>(trueKData15M->ma5)+";"
                     + "ma10="+boost::lexical_cast<string>(trueKData15M->ma10)+";"
                     + "ma20="+boost::lexical_cast<string>(trueKData15M->ma20)+";"
+                    + "tr="+boost::lexical_cast<string>(trueKData15S->TR)+";"
+                    + "atr="+boost::lexical_cast<string>(trueKData15S->ATR)+";"
                     + "macd_diff="+boost::lexical_cast<string>(trueKData15M->macd_diff)+";"
                     + "macd_dea="+boost::lexical_cast<string>(trueKData15M->macd_dea)+";"
                     + "closePrice="+boost::lexical_cast<string>(trueKData15M->closePrice)+";"
@@ -189,6 +206,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                     + "highPrice="+boost::lexical_cast<string>(trueKData15M->highPrice)+";"
                     + "lowPrice="+boost::lexical_cast<string>(trueKData15M->lowPrice)+";"
                     + "tradingDay="+tradingDay+";"
+                    + "kIndex="+boost::lexical_cast<string>(kIndex_15m)+";"
+                    + "index="+boost::lexical_cast<string>(INDEX_15m)+";"
                     + "updateTime="+boost::lexical_cast<string>(pDepthMarketData->UpdateTime)+";"
                     + "timeType=minute;"
                     + "opType=c;"
@@ -197,10 +216,15 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             LOG(INFO)<<msg;
         }
         //write_record(KData_15m, UpdateTime, kdata15min);
-	}
+    }
     //mainDirection="0";
-    //beginK15s=true;
-    //return;
+    LOG(INFO)<<"AFTER:INDEX_15s="+boost::lexical_cast<string>(INDEX_15s)+",INDEX_15m="+boost::lexical_cast<string>(INDEX_15m);
+    if(techCls.isTestInviron){
+        mainDirection="0";
+        beginK15s=true;
+        return;
+    }
+
     if(genKLine_15m&&trueKData15M){
         string msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=diff="+boost::lexical_cast<string>(trueKData15M->macd_diff) +","
                 +"dea="+boost::lexical_cast<string>(trueKData15M->macd_dea) +","
@@ -210,7 +234,7 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
         LOG(INFO) << msg;
         sendMSG(msg);
         if(trueKData15M->macd_dea==0||trueKData15M->ma20==0||trueKData15M->ma10==0){
-            return;
+            //return;
         }
         if(trueKData15M->macd_diff>trueKData15M->macd_dea
                 &&trueKData15M->ma5>trueKData15M->ma20
@@ -255,7 +279,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             }else if(mainDirection=="3"){
                 mainDirection="0";
                 beginK15s=true;
-                KData_15s.clear();
+                doKcleanS(KData_15s);
+                //KData_15s.clear();
                 msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=change main direciton from 3 to 0.begin to compute 15s k line,current 15s k line size is "
                         +boost::lexical_cast<string>(KData_15s.size());
                 LOG(INFO) <<msg;
@@ -267,7 +292,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                     sendMSG(msg);
                     mainDirection="0";
                     beginK15s=true;
-                    KData_15s.clear();
+                    doKcleanS(KData_15s);
+                    //KData_15s.clear();
                     msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=change main direciton from 12 to 0;begin to compute 15s k line,current 15s k line size is "
                             +boost::lexical_cast<string>(KData_15s.size());
                     LOG(INFO) << msg;
@@ -315,7 +341,8 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
             }else if(mainDirection=="3"){
                 mainDirection="1";
                 beginK15s=true;
-                KData_15s.clear();
+                doKcleanS(KData_15s);
+                //KData_15s.clear();
                 LOG(INFO) << "change main direciton from 3 to 1;begin to compute 15s k line,current 15s k line size is "
                               +boost::lexical_cast<string>(KData_15s.size());
             }else{
@@ -372,126 +399,139 @@ void Strategy::RunMarketData(EESMarketDepthQuoteData *pDepthMarketData)
                 LOG(INFO) << "change main dir from 1 to "+mainDirection+",begin to watch.";
             }
         }
+        string tmpmsg="businessType=wtm_1003;tradingDay="+tradingDayT+";logTime="+currTime + ";mainDirection="+techCls.mainDirection;
+        sendMSG(tmpmsg);
     }
 }
 
 int Strategy::cal_Kindex(int h1, int m1, int s1, int black_window)
 {
-	/*int send_nums;
-	send_nums = 0;*/
-	
+    /*int send_nums;
+    send_nums = 0;*/
 
-	if (h1 >= 21 && h1 <= 24)
-	{
-		nSec = (h1 - 21) * 3600 + m1 * 60 + s1;
 
-	}
-	else if (h1 >= 0 && h1 <= 2)
-	{
-		nSec = 10800 + h1 * 3600 + m1 * 60 + s1;
-		//UpdateTime = (h1==0) ?(): h1 * 10000 + m1 * 100 + s1 * 1 ;
-	}
-	else if (h1 >= 9 && h1<15)
-	{
-		//夜盘和白天的收盘价K线连续
-		/*if (nightendtime != 0)
-		{
-		if (h1 == 9 || (h1 == 10 && m1 <= 15))
-		{
-		nSec = (h1 - 9) * 3600 + m1 * 60 + s1 + totalNightSeconds;
-		}
-		else if ((h1 == 10 && m1 >= 30) || h1 == 11)
-		{
-		nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 + totalNightSeconds;
-		}
-		else if (h1 >= 13 && h1 < 15)
-		{
-		nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 - 2 * 3600 + totalNightSeconds;
-		}
-		}*/
+    if (h1 >= 21 && h1 <= 24)
+    {
+        nSec = (h1 - 21) * 3600 + m1 * 60 + s1+ preTotalSeconds;
 
-		if (h1 == 9 || (h1 == 10 && m1 <= 15))
-		{
-			nSec = (h1 - 9) * 3600 + m1 * 60 + s1;
-		}
-		else if ((h1 == 10 && m1 >= 30) || h1 == 11)
-		{
-			nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900;
-		}
-		else if (h1 >= 13 && h1 < 15)
-		{
-			nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 - 2 * 3600;
-		}
+    }
+    else if (h1 >= 0 && h1 <= 2)
+    {
+        nSec = 10800 + h1 * 3600 + m1 * 60 + s1+ preTotalSeconds;
+        //UpdateTime = (h1==0) ?(): h1 * 10000 + m1 * 100 + s1 * 1 ;
+    }
+    else if (h1 >= 9 && h1<=15)
+    {
+        //夜盘和白天的收盘价K线连续
+        /*if (nightendtime != 0)
+        {
+        if (h1 == 9 || (h1 == 10 && m1 <= 15))
+        {
+        nSec = (h1 - 9) * 3600 + m1 * 60 + s1 + totalNightSeconds;
+        }
+        else if ((h1 == 10 && m1 >= 30) || h1 == 11)
+        {
+        nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 + totalNightSeconds;
+        }
+        else if (h1 >= 13 && h1 < 15)
+        {
+        nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 - 2 * 3600 + totalNightSeconds;
+        }
+        }*/
 
-	}
+        if (h1 == 9 || (h1 == 10 && m1 <= 15))
+        {
+            nSec = (h1 - 9) * 3600 + m1 * 60 + s1 + preTotalSeconds + tonightSecs;
+        }
+        else if ((h1 == 10 && m1 >= 30) || h1 == 11)
+        {
+            nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 + preTotalSeconds + tonightSecs;
+        }
+        else if (h1 >= 13 && h1 <= 15)
+        {
+            nSec = (h1 - 9) * 3600 + m1 * 60 + s1 - 900 - 2 * 3600 +preTotalSeconds + tonightSecs;
+        }
 
-	else
-	{
-		return 0;
-	}
+    }
 
-	int tem_index{ 0 };
-	tem_index = nSec / black_window;
+    else
+    {
+        return -1;
+    }
 
-	return tem_index;
+    int tem_index{ 0 };
+    tem_index = nSec / black_window;
 
+    return tem_index;
+
+}
+void Strategy::setPreTotalSecs(int totalDates){
+    int totalSeconds=totalDates*(2+1.5+2.5-0.25)*3600;
+    LOG(INFO)<<"totalSeconds="+boost::lexical_cast<string>(totalSeconds);
+    cout<<"totalSeconds="+boost::lexical_cast<string>(totalSeconds);
+    preTotalSeconds=totalSeconds;
 }
 
 void Strategy::creat_Kline(EESMarketDepthQuoteData* tickData, int current_index, vector<Kdata > &vectorKData)
 {	///////////////////////////////////////////////////////////////////////////////////////
 
-	//新产生的K线creat_Kline
-	Kdata newKata;
-	newKata.updatetimes = UpdateTime;
+    //新产生的K线creat_Kline
+    Kdata newKata;
+    newKata.updatetimes = UpdateTime;
     newKata.openPrice = tickData->LastPrice;
     newKata.closePrice = tickData->LastPrice;
     newKata.highPrice = tickData->LastPrice;
     newKata.lowPrice = tickData->LastPrice;
     newKata.volume = tickData->Volume;					//累积成交量
-	//newKata.atr = 0;
-	newKata.nIndex = current_index;
-	//技术指标
-	newKata.macd_diff= 0;
-	newKata.macd_dea = 0;
-	newKata.macd_sign = 0;
-	newKata.OBV = 0;
+    //newKata.atr = 0;
+    newKata.nIndex = current_index;
+    //技术指标
+    newKata.macd_diff= 0;
+    newKata.macd_dea = 0;
+    newKata.macd_sign = 0;
+    newKata.OBV = 0;
+    newKata.TR=0;
+    newKata.ATR=0;
+    newKata.ma5=0;
+    newKata.ma10=0;
+    newKata.ma20=0;
 
-	vectorKData.push_back(newKata);
+    vectorKData.push_back(newKata);
 
 
-			//输出K线
+            //输出K线
             //if (KData_15.size() >= 2)
             //{
                 //kdatalog << updatetime << "," << LastPrice << "," << KData_15[KData_15.size() - 2].openPrice << "," << vectorKData[vectorKData.size() - 2].highPrice << ","
-				//	<< vectorKData[vectorKData.size() - 2].lowPrice << "," << vectorKData[vectorKData.size() - 2].closePrice << "," << vectorKData[vectorKData.size() - 2].nIndex << "," << endl;
-				//<< current_macd << "," << results_RSI << "," << stok << "," << stod << "," << bulling << "," << tem_std << endl;
-			//}
-			//cout << "计算新K" << endl;
-	//cout << "初始化K线  : " << current_index << "; " << vectorKData.size() << endl;
-	//当前K线没走完，但是只要更新了，就会影响具体的技术指标
+                //	<< vectorKData[vectorKData.size() - 2].lowPrice << "," << vectorKData[vectorKData.size() - 2].closePrice << "," << vectorKData[vectorKData.size() - 2].nIndex << "," << endl;
+                //<< current_macd << "," << results_RSI << "," << stok << "," << stod << "," << bulling << "," << tem_std << endl;
+            //}
+            //cout << "计算新K" << endl;
+    //cout << "初始化K线  : " << current_index << "; " << vectorKData.size() << endl;
+    //当前K线没走完，但是只要更新了，就会影响具体的技术指标
 }
 
 
 void Strategy::update_kline(EESMarketDepthQuoteData* tickData, vector<Kdata > &vectorKData,bool is_15min)
 {
-	if (vectorKData.size()<1)
-	{
-		cout << "请先初始化K线" << endl;
+    if (vectorKData.size()<1)
+    {
+        cout << "请先初始化K线" << endl;
 
-	}
+    }
 
-	else
-	{
+    else
+    {
         vectorKData[vectorKData.size() - 1].closePrice = tickData->LastPrice;
         if (tickData->LastPrice> vectorKData[vectorKData.size() - 1].highPrice)
-		{
+        {
             vectorKData[vectorKData.size() - 1].highPrice = tickData->LastPrice;
-		}
+        }
         if (tickData->LastPrice < vectorKData[vectorKData.size() - 1].lowPrice)
-		{
+        {
             vectorKData[vectorKData.size() - 1].lowPrice = tickData->LastPrice;
-		}	
-	}
+        }
+    }
     if (is_15min)
     {
         int curr_sec{ 0 };
@@ -512,84 +552,83 @@ void Strategy::update_kline(EESMarketDepthQuoteData* tickData, vector<Kdata > &v
             }
         }
     }
-		//vectorKData[vectorKData.size() - 1].atr = vectorKData[vectorKData.size() - 1].highPrice - vectorKData[vectorKData.size() - 1].lowPrice;
+        //vectorKData[vectorKData.size() - 1].atr = vectorKData[vectorKData.size() - 1].highPrice - vectorKData[vectorKData.size() - 1].lowPrice;
 
 }
 
 void Strategy::run_tech_lib(vector<Kdata > &vectorKData)
 {
-
-	//##########################计算MACD值   
+    //##########################计算MACD值
     cal.MACD(vectorKData, fast, middle, slows);
 
-	//##########################计算RSI值    result[3]
+    //##########################计算RSI值    result[3]
     //results_RSI = cal.RSI(vectorKData, RSI_window);
-	//cout << "RSI results: " << results_RSI << endl;
+    //cout << "RSI results: " << results_RSI << endl;
 
 
 
-	//##########################计算kdj值		
-    stok = cal.KDJ(vectorKData, kdj_window);
-    stoks.push_back(stok);
+    //##########################计算kdj值
+    //stok = cal.KDJ(vectorKData, kdj_window);
+    //stoks.push_back(stok);
     /*if (stoks.size()> kdj_window)
-	{
-		stod = cal.double_ema(vectorKData, kdj_window);
+    {
+        stod = cal.double_ema(vectorKData, kdj_window);
     }*/
-	//cout << "KDJ results: " << stok << " #  " << stod << endl;
+    //cout << "KDJ results: " << stok << " #  " << stod << endl;
 
 
-	//##########################计算布林带
-	//cal.Bulling(vectorKData, bulling_window,bulling_set);
+    //##########################计算布林带
+    //cal.Bulling(vectorKData, bulling_window,bulling_set);
 
-	
-	//
+
+    //
     cal.ATR(vectorKData, ATR_window);
     cal.MA(vectorKData);
     /*
-	cal.OBV(vectorKData);
-	cal.MA(vectorKData);
+    cal.OBV(vectorKData);
+    cal.MA(vectorKData);
 
-	cal.dural_trust(vectorKData,ks);
+    cal.dural_trust(vectorKData,ks);
     */
-	cout << "MACD diff: " << vectorKData[vectorKData.size() - 2].macd_diff << " ;; dea: " << vectorKData[vectorKData.size() - 2].macd_dea << " :;sign: " << vectorKData[vectorKData.size() - 2].macd_sign 
-		<< " uprange " << vectorKData[vectorKData.size() - 1].up_range << "  down_range  " << vectorKData[vectorKData.size() - 1].down_range << endl;
+    cout << "MACD diff: " << vectorKData[vectorKData.size() - 2].macd_diff << " ;; dea: " << vectorKData[vectorKData.size() - 2].macd_dea << " :;sign: " << vectorKData[vectorKData.size() - 2].macd_sign
+        << " uprange " << vectorKData[vectorKData.size() - 1].up_range << "  down_range  " << vectorKData[vectorKData.size() - 1].down_range << endl;
 
 }
 /*
 void Strategy::update_listcontrol(int updatetime)
 {
-	if (updatetime %5 ==0)
-	{
-		for (int i = 0; i < pDlg->dlg_list_tasklist.GetItemCount(); i++)
-		{
-			CString str2 = pDlg->dlg_list_tasklist.GetItemText(i, 0);
+    if (updatetime %5 ==0)
+    {
+        for (int i = 0; i < pDlg->dlg_list_tasklist.GetItemCount(); i++)
+        {
+            CString str2 = pDlg->dlg_list_tasklist.GetItemText(i, 0);
 
-			int taskid = _ttoi(str2);
+            int taskid = _ttoi(str2);
 
-			for (vector<Strategy* >::iterator it = allRunningTasks.begin(); it != allRunningTasks.end(); it++)
-			{
-				if ((*it)->nTask == taskid)
-				{
-					CString str;
-					int nRow = i;
-
-
-					str.Format(_T("%.2f"), tickData.BidPrice1);							//  pDepthMarketData->BidPrice1
-					pDlg->dlg_list_tasklist.SetItemText(nRow, 2, str);
+            for (vector<Strategy* >::iterator it = allRunningTasks.begin(); it != allRunningTasks.end(); it++)
+            {
+                if ((*it)->nTask == taskid)
+                {
+                    CString str;
+                    int nRow = i;
 
 
-					//str.Format(_T("%.2f"), bench_lin);							//  pDepthMarketData->BidPrice1
-					//pDlg->dlg_list_tasklist.SetItemText(nRow, 3, str);
+                    str.Format(_T("%.2f"), tickData.BidPrice1);							//  pDepthMarketData->BidPrice1
+                    pDlg->dlg_list_tasklist.SetItemText(nRow, 2, str);
 
-					//str.Format(_T("%.2f"), tickPrice*grid_num);							//  pDepthMarketData->BidPrice1
-					//pDlg->dlg_list_tasklist.SetItemText(nRow, 4, str);
 
-					break;
+                    //str.Format(_T("%.2f"), bench_lin);							//  pDepthMarketData->BidPrice1
+                    //pDlg->dlg_list_tasklist.SetItemText(nRow, 3, str);
 
-				}
-			}
-		}
+                    //str.Format(_T("%.2f"), tickPrice*grid_num);							//  pDepthMarketData->BidPrice1
+                    //pDlg->dlg_list_tasklist.SetItemText(nRow, 4, str);
 
-	}
+                    break;
+
+                }
+            }
+        }
+
+    }
 }*/
 

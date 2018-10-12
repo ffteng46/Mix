@@ -524,10 +524,11 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
         }
     }
     techCls.RunMarketData(pDepthMarketData);
-    //return;
+
     string msg="businessType=wtm_6001;tradingDay="+boost::lexical_cast<string>(tradingDay)+";logTime="+currTime + ";logType=2;mainDirection="+techCls.mainDirection+";stgStatus="+techCls.stgStatus+";priceStatus="+techCls.priceStatus+";lastPrice="+boost::lexical_cast<string>(lastPrice);
+
     sendMSG(msg);
-    LOG(INFO) << "mainDirection="+techCls.mainDirection+",stgStatus="+techCls.stgStatus+",priceStatus="+techCls.priceStatus+",lastPrice="+boost::lexical_cast<string>(lastPrice)+",15s k line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
+    LOG(INFO) <<"time=" +currTime+",mainDirection="+techCls.mainDirection+",stgStatus="+techCls.stgStatus+",priceStatus="+techCls.priceStatus+",lastPrice="+boost::lexical_cast<string>(lastPrice)+",15s k line size="+boost::lexical_cast<string>(techCls.KData_15s.size());
     //strategy
     boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
     if(techCls.mainDirection=="0"||techCls.mainDirection=="3"||techCls.mainDirection=="02"){
@@ -1000,12 +1001,14 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                                                      +",untradePrice="+boost::lexical_cast<string>(orderInfo.price);
                                         AdditionOrderInfo* addinfo=new AdditionOrderInfo();
                                         addinfo->openStgType="2052";
+                                        addinfo->flag="fbna";
                                         addNewOrderTrade(instrumentID,"0","0",lastPrice,hopeVolume,"0",addinfo);
                                     }
                                 }else{
                                     LOG(INFO) << "There are no untrade order exist,add new order.";
                                     AdditionOrderInfo* addinfo=new AdditionOrderInfo();
                                     addinfo->openStgType="2052";
+                                    addinfo->flag="fbna";
                                     addNewOrderTrade(instrumentID,"0","0",lastPrice,hopeVolume,"0",addinfo);
                                 }
                             }else{
@@ -1050,7 +1053,95 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                 }
 
             }else if(techCls.priceStatus=="6"){
+                setRelockPrice(lastPrice,tickPrice,techCls.mainDirection);
                 WaitForCloseInfo* wfc_lastOpen=tmpLongReverseList.back();
+                ///change unlock logic
+                ///
+                ///
+                ///
+                ///
+                if(lastPrice <= (wfc_lastOpen->openPrice-techCls.lockWatchTickNums*tickPrice)){
+                    LOG(INFO)<<"WATCHING:price goes down to "+boost::lexical_cast<string>(techCls.lockWatchTickNums)+" tick lower.lastPrice="+boost::lexical_cast<string>(lastPrice)+",lastOpenPrice="
+                               +boost::lexical_cast<string>(wfc_lastOpen->openPrice);
+                    //setRelockPrice(lastPrice,tickPrice,techCls.mainDirection);
+                    if(techCls.minPrice == 0){
+                        techCls.minPrice = lastPrice;
+                        LOG(INFO)<<"begin to initialize minPrice="+boost::lexical_cast<string>(techCls.minPrice);
+                    }else if(techCls.minPrice > lastPrice){
+                        double tmprice=techCls.minPrice;
+                        techCls.minPrice = lastPrice;
+                        LOG(INFO)<<"Price become even more lower,set minPrice from "+boost::lexical_cast<string>(tmprice)+" to "
+                                   +boost::lexical_cast<string>( techCls.minPrice);
+                    }else{
+                        LOG(INFO)<<"It's seems price may reverse to go up.minPrice="+boost::lexical_cast<string>(techCls.minPrice)+",lastPrice="
+                                   +boost::lexical_cast<string>(lastPrice);
+                        int drawbackTickNums = round(((wfc_lastOpen->openPrice-techCls.minPrice)*1.0/tickPrice)/techCls.drawbackTickRate);
+                        techCls.drawbackPrice = techCls.minPrice + drawbackTickNums*tickPrice;
+                        LOG(INFO)<<"drawbackTickNums="+boost::lexical_cast<string>(drawbackTickNums)+",drawbackPrice="+boost::lexical_cast<string>(techCls.drawbackPrice);
+                        if(techCls.drawbackPrice!=0 && lastPrice >= techCls.drawbackPrice){
+                            LOG(INFO)<<"Unlock condition one:Price triggered short direction stop loss,begin to unlock.orderPrice="+boost::lexical_cast<string>(pDepthMarketData->UpperLimitPrice);
+                            sof->instrumentID=instrumentID;
+                            sof->direction="0";
+                            sof->offsetFlag="1";
+                            if(techCls.isTestInviron){
+                                sof->lastPrice=pDepthMarketData->AskPrice1;
+                            }else{
+                                sof->lastPrice=pDepthMarketData->UpperLimitPrice;
+                            }
+                            sof->volume=userHoldPst.shortTotalPosition;
+                            sof->orderType="0";
+                            sof->openStgType="2071";
+                            doSpecOrder(sof);
+                        }else{
+                            LOG(INFO)<<"drawbackPrice="+boost::lexical_cast<string>(techCls.drawbackPrice)+",not satisfy unlock condition,not process.";
+                        }
+                    }
+                }else if(lastPrice > (wfc_lastOpen->openPrice-techCls.lockWatchTickNums*tickPrice)&&lastPrice<=wfc_lastOpen->openPrice){
+
+                    if(techCls.minPrice == 0){
+                        LOG(INFO)<<"After lock position,price not touch the lowest point of "+boost::lexical_cast<string>(techCls.lockWatchTickNums)+" tick lower.not process.";
+                    }else if(techCls.minPrice != 0){
+                        LOG(INFO)<<"Price touched the lowest point of "+boost::lexical_cast<string>(techCls.lockWatchTickNums)+" tick lower,and return back.";
+                        if(techCls.drawbackPrice!=0 && lastPrice >= techCls.drawbackPrice){
+                            LOG(INFO)<<"Unlock condition two:Price triggered short direction stop loss,begin to unlock.orderPrice="+boost::lexical_cast<string>(pDepthMarketData->UpperLimitPrice);
+                            sof->instrumentID=instrumentID;
+                            sof->direction="0";
+                            sof->offsetFlag="1";
+                            if(techCls.isTestInviron){
+                                sof->lastPrice=pDepthMarketData->AskPrice1;
+                            }else{
+                                sof->lastPrice=pDepthMarketData->UpperLimitPrice;
+                            }
+                            sof->volume=userHoldPst.shortTotalPosition;
+                            sof->orderType="0";
+                            sof->openStgType="2071";
+                            doSpecOrder(sof);
+                        }else{
+                            LOG(INFO)<<"drawbackPrice="+boost::lexical_cast<string>(techCls.drawbackPrice)+",not satisfy unlock condition,not process.";
+                        }
+                    }
+                }else if(lastPrice > wfc_lastOpen->openPrice&&wfc_lastOpen->openPrice < pDepthMarketData->BidPrice1){
+                    LOG(INFO)<<"Unlock condition three:price step over lockprice="+boost::lexical_cast<string>(wfc_lastOpen->openPrice)+",bidPrice="+boost::lexical_cast<string>(pDepthMarketData->BidPrice1)+",stop loss.";
+                    sof->instrumentID=instrumentID;
+                    sof->direction="0";
+                    sof->offsetFlag="1";
+                    if(techCls.isTestInviron){
+                        sof->lastPrice=pDepthMarketData->AskPrice1;
+                    }else{
+                        sof->lastPrice=pDepthMarketData->UpperLimitPrice;
+                    }
+                    sof->volume=userHoldPst.shortTotalPosition;
+                    sof->orderType="0";
+                    sof->openStgType="2071";
+                    doSpecOrder(sof);
+                }else{
+                    LOG(INFO)<<"NOT PROCESS.";
+                }
+
+
+
+
+                /*below will be deleted
                 double ATR15S_60C=1.5*tickPrice;//get this techmetric from lib
                 if(ATR15S_60C == 0){
                     //init 60 circle 15s atr
@@ -1081,23 +1172,6 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                             sof->openStgType="2071";
                             doSpecOrder(sof);
                             //OrderInfo orderInfo;
-                            /*
-                            if(existUntradeOrder("2071",&orderInfo)){
-                                if(orderInfo.price == lastPrice){
-                                    LOG(INFO) << "There are untrade order at this price,not process.";
-                                }else{
-                                    LOG(INFO) << "There are untrade order for 2071,but not at this price,reinsert.";
-                                    cancelSpecTypeOrder(instrumentID,"2071");
-                                    AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                    addinfo->openStgType="2071";
-                                    addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                                }
-                            }else{
-                                LOG(INFO) << "There are no untrade order exist,add new order.";
-                                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                addinfo->openStgType="2071";
-                                addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                            }*/
                         }
                     }
                 }else if(lastPrice > (wfc_lastOpen->openPrice - techCls.watchUnlockATRNums*ATR15S_60C)&&lastPrice <= wfc_lastOpen->openPrice){
@@ -1123,23 +1197,6 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                             sof->openStgType="2071";
                             doSpecOrder(sof);
                             //OrderInfo orderInfo;
-                            /*
-                            if(existUntradeOrder("2071",&orderInfo)){
-                                if(orderInfo.price == lastPrice){
-                                    LOG(INFO) << "There are untrade order at this price,not process.";
-                                }else{
-                                    LOG(INFO) << "There are untrade order for 2071,but not at this price,reinsert.";
-                                    cancelSpecTypeOrder(instrumentID,"2071");
-                                    AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                    addinfo->openStgType="2071";
-                                    addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                                }
-                            }else{
-                                LOG(INFO) << "There are no untrade order exist,add new order.";
-                                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                addinfo->openStgType="2071";
-                                addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                            }*/
                         }
                     }
                 }else if(lastPrice > wfc_lastOpen->openPrice){
@@ -1158,23 +1215,6 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                             sof->openStgType="2071";
                             doSpecOrder(sof);
                             //OrderInfo orderInfo;
-                            /*
-                            if(existUntradeOrder("2071",&orderInfo)){
-                                if(orderInfo.price == lastPrice){
-                                    LOG(INFO) << "There are untrade order at this price,not process.";
-                                }else{
-                                    LOG(INFO) << "There are untrade order for 2071,but not at this price,reinsert.";
-                                    cancelSpecTypeOrder(instrumentID,"2071");
-                                    AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                    addinfo->openStgType="2071";
-                                    addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                                }
-                            }else{
-                                LOG(INFO) << "There are no untrade order exist,add new order.";
-                                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                addinfo->openStgType="2071";
-                                addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                            }*/
                         }else if(lastPrice > (wfc_lastOpen->openPrice + 2*tickPrice)){//this type of unlock need to be disgrude.
                             LOG(INFO)<<"after lock,the price has never been shaked.";
                             LOG(INFO)<<"Unlock condition four:Price triggered short direction stop loss,begin to unlock.";
@@ -1186,15 +1226,6 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                             sof->orderType="0";
                             sof->openStgType="2071";
                             doSpecOrder(sof);
-                            /*
-                            if(existUntradeOrder("2071",NULL)){
-                                LOG(INFO) << "There are untrade order at this price,not process.";
-                            }else{
-                                LOG(INFO) << "There are no untrade order exist,add new order.";
-                                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                addinfo->openStgType="2071";
-                                addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                            }*/
                         }
                     }else{
                         LOG(INFO)<<"lastPrice="+boost::lexical_cast<string>(lastPrice)+">lastOpenPrice="+boost::lexical_cast<string>(wfc_lastOpen->openPrice)
@@ -1209,31 +1240,27 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                             sof->orderType="0";
                             sof->openStgType="2071";
                             doSpecOrder(sof);
-                            /*
-                            if(existUntradeOrder("2071",NULL)){
-                                LOG(INFO) << "There are untrade order at this price,not process.";
-                            }else{
-                                LOG(INFO) << "There are no untrade order exist,add new order.";
-                                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                                addinfo->openStgType="2071";
-                                addNewOrderTrade(instrumentID,"0","1",lastPrice,userHoldPst.shortTotalPosition,"0",addinfo);
-                            }*/
                         }
                         //LOG(ERROR)<<"ERROR:minPrice="+boost::lexical_cast<string>(techCls.minPrice)+",never take process this price.";
                     }
-                }
+                }*/
             }else if(techCls.priceStatus == "7"){//watch high price
-                LOG(INFO)<<"now has been unlock,begin to watch high price ready to long unlock.";
-                double ATR15S_60C=1.5*tickPrice;//get this techmetric from lib
+                LOG(INFO)<<"now has been unlock,begin to watch high price ready to long unlock.minPrice="+boost::lexical_cast<string>(techCls.minPrice)+",relockPrice="
+                           +boost::lexical_cast<string>(techCls.relockPrice)+",addMinPrice="+boost::lexical_cast<string>(techCls.additionMinPrice);
+                double ATR15S_60C=techCls.trueKData15S->ATR*tickPrice;//get this techmetric from lib
                 if(ATR15S_60C == 0){
-                    //init 60 circle 15s atr
+                    ATR15S_60C=1.5*tickPrice;
                 }
                 LOG(INFO)<<"ATR="+boost::lexical_cast<string>(ATR15S_60C)+",current maxPrice="+boost::lexical_cast<string>(techCls.maxPrice);
                 if(lastPrice >= (techCls.unlockPrice + techCls.watchUnlockAnotherATRNums*ATR15S_60C)){
                     if(techCls.maxPrice == 0){
                         techCls.maxPrice = lastPrice;
+                        LOG(INFO)<<"begin to initialize maxPrice="+boost::lexical_cast<string>(techCls.maxPrice);
                     }else if(techCls.maxPrice < lastPrice){
+                        double tmprice = techCls.maxPrice;
                         techCls.maxPrice = lastPrice;
+                        LOG(INFO)<<"Price become even more higher,set maxPrice from "+boost::lexical_cast<string>(tmprice)+" to "
+                                   +boost::lexical_cast<string>( techCls.maxPrice);
                     }else{
                         if((techCls.maxPrice - lastPrice) >= techCls.afterWatchUnlockOtherATRNums*ATR15S_60C){
                             LOG(INFO)<<"Unlock condition five:Price triggered long direction stop loss,begin to unlock.";
@@ -1254,6 +1281,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                                 addinfo->openStgType="2081";
                                 addNewOrderTrade(instrumentID,"1","0",lastPrice,userHoldPst.longTotalPosition,"0",addinfo);
                             }*/
+                        }else{
+                            LOG(INFO)<<"price go back to "+boost::lexical_cast<string>(lastPrice)+",not satisfy unlock condition,not process.";
                         }
                     }
                 }else{
@@ -1261,6 +1290,26 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                                +boost::lexical_cast<string>(techCls.unlockPrice)+"+"
                                +boost::lexical_cast<string>(ATR15S_60C*techCls.watchUnlockAnotherATRNums)+")";
                 }
+                ///add when price not over atr
+                if(lastPrice < (techCls.unlockPrice + techCls.watchUnlockAnotherATRNums*ATR15S_60C)){
+
+                    if(techCls.maxPrice!=0){
+                        if((techCls.maxPrice - lastPrice) >= techCls.afterWatchUnlockOtherATRNums*ATR15S_60C){
+                            LOG(INFO)<<"Unlock condition five:Price triggered long direction stop loss,begin to unlock.";
+                            sof->instrumentID=instrumentID;
+                            sof->direction="1";
+                            sof->offsetFlag="1";
+                            sof->lastPrice=lastPrice;
+                            sof->volume=userHoldPst.longTotalPosition;
+                            sof->orderType="0";
+                            sof->openStgType="2081";
+                            doSpecOrder(sof);
+                        }else{
+                            LOG(INFO)<<"price go back to "+boost::lexical_cast<string>(lastPrice)+",not satisfy unlock condition,not process.";
+                        }
+                    }
+                }
+                ///another method to be kicked out
                 if((lastPrice - techCls.unlockPrice) >= techCls.timesOfStopLoss*techCls.twoGap*tickPrice){
                     LOG(INFO)<<"Unlock condition six:Price triggered long direction stop loss,begin to unlock.price over "+boost::lexical_cast<string>(techCls.timesOfStopLoss)+" times * twogap.";
                     sof->instrumentID=instrumentID;
@@ -1279,7 +1328,9 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                         addinfo->openStgType="2081";
                         addNewOrderTrade(instrumentID,"1","0",lastPrice,userHoldPst.longTotalPosition,"0",addinfo);
                     }*/
-                }else if((techCls.unlockPrice - lastPrice) >= techCls.relockATRNums*ATR15S_60C){
+                }
+                /*
+                else if((techCls.unlockPrice - lastPrice) >= techCls.relockATRNums*ATR15S_60C){
                     LOG(INFO)<<"WARNING:relock position!!!!After unlock,price goes down again,and trigger relock condition.unlockPrice("+boost::lexical_cast<string>(techCls.unlockPrice)+")-lastPrice("
                                +boost::lexical_cast<string>(lastPrice)+")<=relockATRNums*ATR15S_60C("+boost::lexical_cast<string>(techCls.relockATRNums*ATR15S_60C)+").";
                     LOG(INFO)<<"before relock,check if all of last unlock order is traded.if not then action.";
@@ -1293,21 +1344,66 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                         sof->volume=userHoldPst.longTotalPosition-userHoldPst.shortTotalPosition;
                         sof->orderType="0";
                         sof->openStgType="2062";
-                        doSpecOrder(sof);/*
-                        if(existUntradeOrder("2062",NULL)){
-                            LOG(INFO) << "There are untrade order at this price,not process.";
+                        doSpecOrder(sof);
+                    }
+
+                }*/
+                else{
+                    LOG(INFO)<<"Not trigger (lastPrice="+boost::lexical_cast<string>(lastPrice)+"-unlockPrice="+boost::lexical_cast<string>(techCls.unlockPrice) +") >= (4*techCls.twoGap*tickPrice)=(4*"
+                               +boost::lexical_cast<string>(techCls.twoGap)+"*"
+                               +boost::lexical_cast<string>(tickPrice)+")";
+                }
+                ///if add addition fbna order
+                if(techCls.additionMinPrice !=0 && lastPrice <= techCls.additionMinPrice){
+                    LOG(INFO)<<"duration in unlock,price go down again and touch the minimal additionMinPrice="+boost::lexical_cast<string>(techCls.additionMinPrice)+",add additional fbna orders.";
+                    if(techCls.isAddOrderOpen){
+                        LOG(INFO)<<"additional FBNA order has been traded,not add new orders.";
+                    }else{
+                        int hopeVolume=getFBNAOrderVolume(tmpLongReverseList,"0");
+                        LOG(INFO)<<"当前加仓数量:hopeVolume="
+                                   +boost::lexical_cast<string>(hopeVolume);
+                        //OrderInfo orderInfo;
+                        if(existUntradeOrder("2052a",&orderInfo)){
+                            if(orderInfo.price==lastPrice){
+                                LOG(INFO) << "There are untrade order at this price,not process.";
+                            }else{
+                                LOG(INFO) << "There are untrade order exist,but not at this price,add new order.lastPrice="+boost::lexical_cast<string>(lastPrice)
+                                             +",untradePrice="+boost::lexical_cast<string>(orderInfo.price);
+                                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+                                addinfo->openStgType="2052a";
+                                addinfo->flag="fbna";
+                                addNewOrderTrade(instrumentID,"0","0",lastPrice,hopeVolume,"0",addinfo);
+                            }
                         }else{
                             LOG(INFO) << "There are no untrade order exist,add new order.";
                             AdditionOrderInfo* addinfo=new AdditionOrderInfo();
-                            addinfo->openStgType="2062";
-                            addNewOrderTrade(instrumentID,"1","0",lastPrice,userHoldPst.longTotalPosition-userHoldPst.shortTotalPosition,"0",addinfo);
-                        }*/
+                            addinfo->openStgType="2052a";
+                            addinfo->flag="fbna";
+                            addNewOrderTrade(instrumentID,"0","0",lastPrice,hopeVolume,"0",addinfo);
+                        }
                     }
-
-                }else{
-                    LOG(INFO)<<"Not trigger (lastPrice="+boost::lexical_cast<string>(lastPrice)+"-unlockPrice"+boost::lexical_cast<string>(techCls.unlockPrice) +") >= (4*techCls.twoGap*tickPrice)=(4*"
-                               +boost::lexical_cast<string>(techCls.twoGap)+"*"
-                               +boost::lexical_cast<string>(tickPrice)+")";
+                }
+                ///seprate judge
+                if(lastPrice <= techCls.relockPrice){
+                    LOG(INFO)<<"WARNING:relock position!!!!After unlock,price goes down again,and trigger relock condition.lastPrice("+boost::lexical_cast<string>(lastPrice)+") <= relockPrice("
+                               +boost::lexical_cast<string>(techCls.relockPrice)+").";
+                    LOG(INFO)<<"before relock,check if all of last unlock order is traded.if not then action.";
+                    if(existUntradeOrder("2071",NULL)){
+                        tryAllOrderAction(instrumentID);
+                    }else{
+                        sof->instrumentID=instrumentID;
+                        sof->direction="1";
+                        sof->offsetFlag="0";
+                        if(techCls.isTestInviron){
+                            sof->lastPrice=pDepthMarketData->BidPrice1;
+                        }else{
+                            sof->lastPrice=pDepthMarketData->LowerLimitPrice;
+                        }
+                        sof->volume=userHoldPst.longTotalPosition-userHoldPst.shortTotalPosition;
+                        sof->orderType="0";
+                        sof->openStgType="2062";
+                        doSpecOrder(sof);
+                    }
                 }
             }else{
                 LOG(INFO)<<"priceStatus="+techCls.priceStatus+",this kind of status not define.";

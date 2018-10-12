@@ -94,6 +94,24 @@ public:
         return iconv(cd,pin,(size_t *)&inlen,pout,(size_t *)&outlen);
     }
 };
+class SimTradeData{
+public:
+    unsigned int clientOrderToken;
+    string userID;
+    long long int marketOrderToken;
+    unsigned char mSide;
+    char    symbol[20];
+    unsigned char EES_OrderState;//1,2
+    unsigned int        m_Qty;
+    char    EES_MarketOrderId[25];//orderSysID
+    double orderInsertPrice;
+    double tradePrice;
+    unsigned int  tradeVolume;//real trade volume
+    unsigned int  volumeTotal;//original volume
+};
+void generateTradeSimData(SimTradeData* simdata);
+void generateActionSimData(SimTradeData* simdata);
+void doKcleanS(vector<Strategy::Kdata> &vectorKData);
 /*original order info,
 1.created on order inserting
 2.add marketToken when receive response from shengli plantform*/
@@ -755,6 +773,11 @@ void coverYourAss();
 void doSpecOrder(SpecOrderField* sof);
 void lockInit();
 void sendMSG(string msg);
+void initMarketData(list<string> comOrdersList) ;
 string getTradeInfo(OrderFieldInfo* realseInfo);
 void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,double orderInsertPrice,int volume,string mkType,AdditionOrderInfo* addinfo);
+void setRelockPrice(double lastPrice,double tickPrice,string direction);
+int getFBNAOrderVolume(list<WaitForCloseInfo*> &orderList,string direction);
+void closeProtectOrders();
+void initInfrastructure(list<string> comOrdersList);
 #endif

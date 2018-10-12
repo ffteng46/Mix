@@ -184,6 +184,7 @@ public:
     std::string function;
     std::string timeFlag="0";
     std::string openStgType="0";
+    std::string flag;//which type of order,eg,fbna
 };
 
 /// 下单消息

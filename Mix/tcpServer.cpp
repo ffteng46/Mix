@@ -22,6 +22,7 @@ int orderInsertAmount;
 extern boost::lockfree::queue<LogMsg*> networkTradeQueue;////报单、成交消息队列,网络通讯使用
 extern int remoteTradeServerPort;//交易端口
                                  // socket智能指针
+extern int mkAmount;
 typedef boost::shared_ptr<boost::asio::ip::tcp::socket> socket_ptr;
 // 异步服务器类
 class Server {
@@ -199,14 +200,14 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                 LOG(ERROR)<<"Reader:Connection closed cleanly by peer.";
                 break; // Connection closed cleanly by peer.
             }else {
-                cout << "本次读取Head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head)<<endl;
+                //cout << "本次读取Head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head)<<endl;
                 LOG(INFO) << "本次读取head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head);
             }
             pkg_databodylen = atoi(pkg_head);
             if (pkg_databodylen == 0) {
                 this_thread::yield();
             } else {
-                cout << "length of databody：" << pkg_databodylen << endl;
+                //cout << "length of databody：" << pkg_databodylen << endl;
                 size_t readsize2 = boost::asio::read(*_socket, boost::asio::buffer(recvbuf, pkg_databodylen),error);
                 //size_t readsize2 = _socket->read_some(boost::asio::buffer(recvbuf, pkg_databodylen), error);
                 //boost::asio::async_read(_socket, boost::asio::buffer(recvbuf, pkg_databodylen), error);
@@ -214,12 +215,12 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                     LOG(ERROR)<<"Reader:Connection closed cleanly by peer.";
                     break; // Connection closed cleanly by peer.
                 }else {
-                    cout << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf) << endl;;
+                    //cout << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf) << endl;;
                     LOG(INFO) << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf);
                 }
                 //wprintf(L"Bytes received: %d\n", strlen(recvbuf));
                 orderInsertAmount = orderInsertAmount + 1;
-                cout << "orderinsert amount：" << orderInsertAmount << ";received data：" << recvbuf << " length：" << strlen(recvbuf) << endl;
+                //cout << "orderinsert amount：" << orderInsertAmount << ";received data：" << recvbuf << " length：" << strlen(recvbuf) << endl;
                 ss.append("received data from client:" + string(recvbuf));
                 //简单解析之后调用相关组件
                 simpleAsamble(recvbuf);
@@ -248,14 +249,14 @@ void simpleAsamble(char *ch) {
     p = strtok(ch, split); //分割字符串
     list<string> strlist;
     while (p != NULL) {
-        cout << p << endl;
+        //cout << p << endl;
         strlist.push_back(p);
         p = strtok(NULL, split); //指向下一个指针
     }
     if (strlist.size() > 0) {
         ot = strlist.front();
         optype = atoi(ot.c_str());
-        cout << atoi(ot.c_str())<<",after="<<boost::lexical_cast<string>(optype) << endl;
+        //cout << atoi(ot.c_str())<<",after="<<boost::lexical_cast<string>(optype) << endl;
         strlist.pop_front();
     }
     if (optype == 100) {
@@ -286,6 +287,11 @@ void simpleAsamble(char *ch) {
             return;
         }else
             initGapPriceData(strlist);
+    }else if (optype == 1) {//初始化infrastructure
+        initInfrastructure(strlist);
+    }else if (optype == 9999) {//初始化marketdata
+        start_process=1;
+        initMarketData(strlist);
     }
 }
 

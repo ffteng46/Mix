@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 calculate::calculate()
 {
-	num = 20;
+    num = 20;
 }
 
 
@@ -80,31 +80,37 @@ void calculate::MACD(vector<Strategy::Kdata> &vectorKData, int n_fast, int n_mid
 
 
 }
-double calculate::EWMA(const vector<Strategy::Kdata> vectorKData, int look_back_window)
+double calculate::EWMA(const vector<Strategy::Kdata> &vectorKData, int look_back_window)
 {
     double meanP{ 0 };
-
-    if (vectorKData.size() >= look_back_window)
+    int vkdSize = vectorKData.size();
+    if (vkdSize >= look_back_window+1)
     {
         double  sumP{ 0 };
-        for (int i = 1; i < look_back_window; i++)				//当前K的技术指标要计算么？？i=1，表示从上一根K线开始计算
+        for (int i = 1; i < look_back_window+1; i++)				//当前K的技术指标要计算么？？i=1，表示从上一根K线开始计算
         {
-            sumP += vectorKData[vectorKData.size() - 1 - i].closePrice;
+            sumP += vectorKData[vkdSize - 1 - i].closePrice;
             //cout <<"i: "<<i<<" close: "<< vectorKData[vectorKData.size() - 1 - i].closePrice << endl;
 
         }
-        meanP = sumP / (look_back_window-1);
-
+        meanP = sumP / (look_back_window);
+        LOG(INFO)<<"MAC:sum="+boost::lexical_cast<string>(sumP)+",mean="+boost::lexical_cast<string>(meanP);
     }
     //cout << "mean " << look_back_window << " is " << meanP << endl;
     return meanP;
 }
 void calculate::MA(vector<Strategy::Kdata> &vectorKData)
 {
-    vectorKData[vectorKData.size() - 1].ma5 = EWMA(vectorKData,5);
-    vectorKData[vectorKData.size() - 1].ma10 = EWMA(vectorKData,10);
+
+    if(vectorKData.size() < 2){
+        return;
+    }
+    vectorKData[vectorKData.size() - 2].ma5 = EWMA(vectorKData,5);
+    vectorKData[vectorKData.size() - 2].ma10 = EWMA(vectorKData,10);
+    vectorKData[vectorKData.size() - 2].ma20 = EWMA(vectorKData, 20);
     //vectorKData[vectorKData.size() - 1].ma15 = EWMA(vectorKData,15);
-    vectorKData[vectorKData.size() - 1].ma20 = EWMA(vectorKData, 20);
+    //
+    //
 
 }
 double calculate::KDJ(vector<Strategy::Kdata> &vectorKData, int look_back_window)

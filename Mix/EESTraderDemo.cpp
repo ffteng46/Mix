@@ -176,6 +176,7 @@ extern string sep;
 extern char tradingDay[12];
 void aggStrategy(TradeFieldInfo* realseInfo);
 void afterTradeProcessor(TradeFieldInfo* tradeInfo);
+void storeTradedOrder(OrderFieldInfo* realseInfo,OriginalOrderFieldInfo* oriOrderField);
 TraderDemo::TraderDemo(void){
     m_logonStatus = 0;
 }
@@ -1394,7 +1395,8 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             }
 
             LOG(INFO)<<"This is open position order.";
-            WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
+            storeTradedOrder(realseInfo,oriOrderField);
+            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
             wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
             wfcInfo1->openStgType = oriOrderField->openStgType;
             wfcInfo1->tradeVolume = realseInfo->tradeVolume;
@@ -1409,7 +1411,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             wfcInfo2->direction = realseInfo->Direction;
             wfcInfo2->openPrice = realseInfo->Price;
             tmpLongReverseList.push_back(wfcInfo1);
-            longReverseList.push_back(wfcInfo2);
+            longReverseList.push_back(wfcInfo2);*/
         }else{
             LOG(INFO) << "This is one normal orders's other execution,not process.";
             processOtherOpen(realseInfo,&tmpLongReverseList);
@@ -1423,7 +1425,8 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             oriOrderField->isFirstOpen=true;
             LOG(INFO) << "This is two status first execution,should set stopLossPrice.we will be kicked out by hold cost.";
             LOG(INFO)<<"This is open position order.";
-            WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
+            storeTradedOrder(realseInfo,oriOrderField);
+            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
             wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
             wfcInfo1->openStgType = oriOrderField->openStgType;
             wfcInfo1->tradeVolume = realseInfo->tradeVolume;
@@ -1438,9 +1441,38 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             wfcInfo2->direction = realseInfo->Direction;
             wfcInfo2->openPrice = realseInfo->Price;
             tmpLongReverseList.push_back(wfcInfo1);
-            longReverseList.push_back(wfcInfo2);
+            longReverseList.push_back(wfcInfo2);*/
         }else{
             LOG(INFO) << "This is two status orders's other execution,not process.";
+            processOtherOpen(realseInfo,&tmpLongReverseList);
+            processOtherOpen(realseInfo,&longReverseList);
+        }
+    }else if(openStgType=="2052a"){//addition fbna
+        techCls.isAddOrderOpen = true;
+        LOG(INFO)<<"this is addition fbna orders,not change priceStatus,remain priceStatus= "+techCls.priceStatus+",set isAddOrderOpen = true.";
+        if(!oriOrderField->isFirstOpen){
+            oriOrderField->isFirstOpen=true;
+            LOG(INFO) << "This is addition fbna order's first execution,should set stopLossPrice.we will be kicked out by hold cost.";
+            LOG(INFO)<<"This is open position order.";
+            storeTradedOrder(realseInfo,oriOrderField);
+            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
+            wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
+            wfcInfo1->openStgType = oriOrderField->openStgType;
+            wfcInfo1->tradeVolume = realseInfo->tradeVolume;
+            wfcInfo1->originalVolume = realseInfo->VolumeTotalOriginal;
+            wfcInfo1->direction = realseInfo->Direction;
+            wfcInfo1->openPrice = realseInfo->Price;
+            WaitForCloseInfo* wfcInfo2 = new WaitForCloseInfo();
+            wfcInfo2->marketOrderToken = realseInfo->marketOrderToken;
+            wfcInfo2->openStgType = oriOrderField->openStgType;
+            wfcInfo2->tradeVolume = realseInfo->tradeVolume;
+            wfcInfo2->originalVolume = realseInfo->VolumeTotalOriginal;
+            wfcInfo2->direction = realseInfo->Direction;
+            wfcInfo2->openPrice = realseInfo->Price;
+            tmpLongReverseList.push_back(wfcInfo1);
+            longReverseList.push_back(wfcInfo2);*/
+        }else{
+            LOG(INFO) << "This is addition fbna order's other execution,not process.";
             processOtherOpen(realseInfo,&tmpLongReverseList);
             processOtherOpen(realseInfo,&longReverseList);
         }
@@ -1465,6 +1497,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         }
     }
     else if(openStgType=="2062"){//lock
+        double tickPrice=getPriceTick(oriOrderField->instrumentID);
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="6";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
@@ -1473,7 +1506,8 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             oriOrderField->isFirstOpen=true;
             LOG(INFO) << "This is two status's lock execution.";
             LOG(INFO)<<"This is open position order.";
-            WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
+            storeTradedOrder(realseInfo,oriOrderField);
+            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
             wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
             wfcInfo1->openStgType = oriOrderField->openStgType;
             wfcInfo1->tradeVolume = realseInfo->tradeVolume;
@@ -1488,21 +1522,29 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             wfcInfo2->direction = realseInfo->Direction;
             wfcInfo2->openPrice = realseInfo->Price;
             tmpLongReverseList.push_back(wfcInfo1);
-            longReverseList.push_back(wfcInfo2);
+            longReverseList.push_back(wfcInfo2);*/
         }else{
             LOG(INFO) << "This is two status lock's other execution,not process.";
             processOtherOpen(realseInfo,&tmpLongReverseList);
             processOtherOpen(realseInfo,&longReverseList);
         }
+        //relockprice will be set here also.because lock direction is reverse,so direction will change
+        if(realseInfo->Direction == "0"){
+            setRelockPrice(realseInfo->Price,tickPrice,"1");
+        }else{
+            setRelockPrice(realseInfo->Price,tickPrice,"0");
+        }
     }else if(openStgType=="2071"){//short unlock
         LOG(INFO)<<"This is stop profit trade.2071,short position unlock.";
         string tmpsts=techCls.priceStatus;
+        double preUnlp = techCls.unlockPrice;
         techCls.priceStatus="7";
         techCls.unlockPrice=realseInfo->Price;
-        LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
+        LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus+",and set unlockPrice from "+boost::lexical_cast<string>(preUnlp)+" to "+boost::lexical_cast<string>(techCls.unlockPrice);
         processClose(realseInfo,&longReverseList);
         processClose(realseInfo,&tmpLongReverseList);
-        //?
+        ///will close protect orders
+        closeProtectOrders();
     }else if(openStgType=="2081"){//long unlock
         LOG(INFO)<<"This is stop profit trade.2081,long position unlock.";
         string tmpsts=techCls.priceStatus;
@@ -1556,6 +1598,24 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     LogMsg *logmsg = new LogMsg();
     logmsg->setMsg(stg);
     networkTradeQueue.push(logmsg);*/
+}
+void storeTradedOrder(OrderFieldInfo* realseInfo,OriginalOrderFieldInfo* oriOrderField){
+    WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
+    wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
+    wfcInfo1->openStgType = oriOrderField->openStgType;
+    wfcInfo1->tradeVolume = realseInfo->tradeVolume;
+    wfcInfo1->originalVolume = realseInfo->VolumeTotalOriginal;
+    wfcInfo1->direction = realseInfo->Direction;
+    wfcInfo1->openPrice = realseInfo->Price;
+    WaitForCloseInfo* wfcInfo2 = new WaitForCloseInfo();
+    wfcInfo2->marketOrderToken = realseInfo->marketOrderToken;
+    wfcInfo2->openStgType = oriOrderField->openStgType;
+    wfcInfo2->tradeVolume = realseInfo->tradeVolume;
+    wfcInfo2->originalVolume = realseInfo->VolumeTotalOriginal;
+    wfcInfo2->direction = realseInfo->Direction;
+    wfcInfo2->openPrice = realseInfo->Price;
+    tmpLongReverseList.push_back(wfcInfo1);
+    longReverseList.push_back(wfcInfo2);
 }
 bool isNormalTrade(string orderType){
     LOG(INFO) << "isNormalTrade:orderType=" + orderType;
