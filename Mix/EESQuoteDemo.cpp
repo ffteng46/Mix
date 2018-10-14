@@ -495,7 +495,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
         marketdatainfo->bidPrice = pDepthMarketData->BidPrice1;
         marketdatainfo->askPrice = pDepthMarketData->AskPrice1;
         marketdatainfo->lastPrice = currentPrice;
-
+        marketdatainfo->highestPrice = pDepthMarketData->UpperLimitPrice;
+        marketdatainfo->lowestPrice = pDepthMarketData->LowerLimitPrice;
         marketdatainfo->turnover = turnover;
         if(volume !=0 && multiply != 0){
             marketdatainfo->simPrice = turnover/volume/multiply;
@@ -518,6 +519,8 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
         marketdatainfo->bidPrice = pDepthMarketData->BidPrice1;
         marketdatainfo->askPrice = pDepthMarketData->AskPrice1;
         marketdatainfo->lastPrice = currentPrice;
+        marketdatainfo->highestPrice = pDepthMarketData->UpperLimitPrice;
+        marketdatainfo->lowestPrice = pDepthMarketData->LowerLimitPrice;
         if(multiply != 0&&tmpVolume != 0){
             //marketdatainfo->simPrice = tmpTurnover/tmpVolume;//multiply needed in shfe
             marketdatainfo->simPrice = tmpTurnover/tmpVolume/multiply;
@@ -813,7 +816,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                     LOG(INFO)<<"long reverse is stopping profit,not process.";
                 }else{
                     //stop profit order not all traded,then first order action.must.
-                    cancelSpecTypeOrder(instrumentID,"2001");
+                    //cancelSpecTypeOrder(instrumentID,"2001");
                     WaitForCloseInfo* wfc_firstOpen;//the first order
                     WaitForCloseInfo* wfc_lastOpen;//the last order
                     WaitForCloseInfo* wfc_lastSecondOpen;//the last second order
@@ -822,6 +825,12 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
                         wfc_firstOpen=*atIT;
                     }
                     wfc_lastOpen=tmpLongReverseList.back();
+                    if(lastPrice >= wfc_lastOpen->openPrice){
+                        LOG(INFO)<<"although in one normal state,but will not insert order,so if there are stop profit orders not traded,not care.";
+                    }else{
+                        //stop profit order not all traded,then first order action
+                        cancelSpecTypeOrder(instrumentID,"2001");
+                    }
                     if(tmpLongReverseList.size() < techCls.oneNormalGrade){
                         LOG(INFO)<<"long逆向加仓处于第一阈值内,each grade加仓量="+boost::lexical_cast<string>(techCls.oneNormalVolume);
                         if(int((wfc_firstOpen->openPrice-lastPrice)/tickPrice)%techCls.oneNormalGap==0){
