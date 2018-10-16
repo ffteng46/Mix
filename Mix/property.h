@@ -763,6 +763,7 @@ bool existUntradeOrder(string type,OrderInfo* untradeOrder);
 //init shadow and sun line
 void initSunOrShadowLine(string direction);
 bool stopProfit(string direction,double lastPrice,string instrumentID);
+bool stopLoss(string direction,double lastPrice,double bidPrice,double askPrice,string instrumentID);
 void processUserHoldPosition(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList);
 void processOtherOpen(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList);
 void processClose(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList);
@@ -780,4 +781,7 @@ void setRelockPrice(double lastPrice,double tickPrice,string direction);
 int getFBNAOrderVolume(list<WaitForCloseInfo*> &orderList,string direction);
 void closeProtectOrders();
 void initInfrastructure(list<string> comOrdersList);
+void setStageTick(string priceStatus,int grade);
+bool whichMarketDataFast(string src,string updateTime);
+string outc(char c);
 #endif

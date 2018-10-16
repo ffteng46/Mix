@@ -20,9 +20,9 @@ extern char tradingDay[];
 int orderInsertAmount;
 
 extern boost::lockfree::queue<LogMsg*> networkTradeQueue;////报单、成交消息队列,网络通讯使用
-extern int remoteTradeServerPort;//交易端口
-                                 // socket智能指针
+extern int remoteTradeServerPort;//交易端口e
 extern int mkAmount;
+                                 // socket智能指针
 typedef boost::shared_ptr<boost::asio::ip::tcp::socket> socket_ptr;
 // 异步服务器类
 class Server {
@@ -46,7 +46,7 @@ public:
     }
     // 启动网络侦听的操作入口
     void start(void) {
-        cout << "start network service....";
+        cout << "start network service...."<<endl;
         while (true) {
             // 自定义的智能指针
             socket_ptr socket(new boost::asio::ip::tcp::socket(ios_));
@@ -292,6 +292,12 @@ void simpleAsamble(char *ch) {
     }else if (optype == 9999) {//初始化marketdata
         start_process=1;
         initMarketData(strlist);
+        mkAmount++;
+        if(mkAmount==121){
+            int i=10;
+            int j=i;
+        }
+        cout<<"receive mkdata "<<mkAmount<<endl;
     }
 }
 

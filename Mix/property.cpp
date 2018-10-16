@@ -5,6 +5,7 @@
 #include "EESTraderDemo.h"
 #include "EESQuoteDemo.h"
 #include "TimeProcesser.h"
+#include "DFITCMdXQN.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -31,6 +32,8 @@ extern bool recordMSG;
 extern string currTime;
 extern QuoteDemo* pQuoteApi;
 extern vector<EESMarketDepthQuoteData*> allMk;
+extern unordered_map<string, int> whichFast;
+extern boost::recursive_mutex unique_fast;//unique lock
 /*****************************marketdata*/
 //gap list map
 extern unordered_map<string, HoldPositionInfo*> normalMMPositionmap;
@@ -1958,6 +1961,7 @@ void tryAllOrderAction(string instrumentID){
             strcpy(clOrder.m_Account, oriOrderField->investorID.c_str());
             clOrder.m_Quantity = 0;
             clOrder.m_MarketOrderToken = marketOrderToken;
+            ///replace
             ptradeApi->reqOrderAction(&clOrder);
 
             string tmporder = getCancleOrderInfo(&clOrder);
@@ -2003,6 +2007,7 @@ void tryOrderAction(string instrumentID,OrderInfo* orderInfo,string actionType){
         strcpy(clOrder.m_Account, INVESTOR_ID.c_str());
         clOrder.m_Quantity = 0;
         clOrder.m_MarketOrderToken = marketOrderToken;
+        ///replace
         ptradeApi->reqOrderAction(&clOrder);
 
         string tmporder = getCancleOrderInfo(&clOrder);
@@ -2034,6 +2039,9 @@ string getCancleOrderInfo(EES_CancelOrder  *clOrder){
     msg += "m_MarketOrderToken=" + boost::lexical_cast<string>(clOrder->m_MarketOrderToken) + ";";
     return msg;
 }
+///delete
+
+long long int mkToken=0;
 //addition info used for feed back
 void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,double orderInsertPrice,int volume,string mkType, AdditionOrderInfo* addinfo){
     //string instrumentID = boost::lexical_cast<string>(pDepthMarketData->InstrumentID);
@@ -2132,6 +2140,7 @@ void addNewOrderTrade(string instrumentID,string direction,string offsetFlag,dou
         aoi.timeFlag = addinfo->timeFlag;
         aoi.openStgType = addinfo->openStgType;
     }
+    ///replace
     ptradeApi->reqOrderInsert(&orderField,&aoi);
     //"investorID":datamap.get("investorID"),"instrumentID":datamap.get("instrumentID"),"orderRef":datamap.get("orderRef")
     string msg="businessType=wtm_1002;updateTime="+currTime+";opType=c;"+getOrderInfo(orderInfo);
@@ -2145,7 +2154,6 @@ void doKcleanS(vector<Strategy::Kdata > &vectorKData){
     }
 
 }
-
 
 
 void processAverageGapGprice(TradeFieldInfo *pTrade) {
@@ -3640,7 +3648,7 @@ void initGapPriceData(list<string> comOrdersList) {
         }
         if(opType == "c"){
             if(timeType == "minute"){
-                if(minute == 15){
+                if(minute == techCls.periodMinOne){
                     techCls.KData_15m.insert(techCls.KData_15m.begin(),tmpdata);
                     techCls.kIndex_15m=kIndex;
                     techCls.INDEX_15m=index;
@@ -3652,7 +3660,7 @@ void initGapPriceData(list<string> comOrdersList) {
                     LOG(ERROR)<<"ERROR:minute techMetric of "+boost::lexical_cast<string>(minute)+" is not define.";
                 }
             }else if(timeType == "second"){
-                if(second == 15){
+                if(second == techCls.periodSecOne){
                     techCls.allK15sList.insert(techCls.allK15sList.begin(),tmpdata);
                     techCls.kIndex_15s=kIndex;
                     techCls.INDEX_15s=index;
@@ -3668,7 +3676,7 @@ void initGapPriceData(list<string> comOrdersList) {
             }
         }else if(opType == "u"){
             if(timeType == "minute"){
-                if(minute == 15){
+                if(minute == techCls.periodMinOne){
                     techCls.KData_15m.push_back(tmpdata);
                     techCls.trueKData15M=&techCls.KData_15m[techCls.KData_15m.size() - 2];
                     techCls.kIndex_15m=kIndex;
@@ -3682,7 +3690,7 @@ void initGapPriceData(list<string> comOrdersList) {
                     LOG(ERROR)<<"ERROR:minute techMetric of "+boost::lexical_cast<string>(minute)+" is not define.";
                 }
             }else if(timeType == "second"){
-                if(second == 15){
+                if(second == techCls.periodSecOne){
                     techCls.allK15sList.push_back(tmpdata);
                     techCls.trueKData15S=&techCls.allK15sList[techCls.allK15sList.size() - 2];
                     techCls.kIndex_15s=kIndex;
@@ -3784,7 +3792,7 @@ void initInfrastructure(list<string> comOrdersList){
 }
 
 void initMarketData(list<string> comOrdersList) {
-    boost::recursive_mutex::scoped_lock SLock4(mkdata_mtx);//锁定
+    //boost::recursive_mutex::scoped_lock SLock4(mkdata_mtx);//锁定
     /************************************************************************/
     /* 每个字段，按照=分隔符进行分割                                        */
     /************************************************************************/
@@ -3856,6 +3864,19 @@ void initMarketData(list<string> comOrdersList) {
         }
         //allMk.push_back(pDepthMarketData);
         //pQuoteApi->ShowQuoteSim(pDepthMarketData);
+        DFITCMarketDataFieldXQN xqndata;
+        xqndata.AskPrice=pDepthMarketData->AskPrice1;
+        xqndata.AskVolume=pDepthMarketData->AskVolume1;
+        xqndata.BidPrice=pDepthMarketData->BidPrice1;
+        xqndata.BidVolume=pDepthMarketData->BidVolume1;
+        strcpy(xqndata.Instrument,pDepthMarketData->InstrumentID);
+        xqndata.LastPrice=pDepthMarketData->LastPrice;
+        xqndata.OpenInterest=pDepthMarketData->OpenInterest;
+        xqndata.Turnover=pDepthMarketData->Turnover;
+        xqndata.UpdateMillisec=pDepthMarketData->UpdateMillisec;
+        strcpy(xqndata.UpdateTime,pDepthMarketData->UpdateTime);
+        xqndata.Volume=pDepthMarketData->Volume;
+        addMarketData(xqndata);
     }catch (const runtime_error &re) {
         cerr << re.what() << endl;
     }catch (exception* e) {
@@ -6054,6 +6075,62 @@ bool stopProfit(string direction,double lastPrice,string instrumentID){
         return false;
     }
 }
+//判断加仓是否stop loss出局,base on hold position hold cost and stage tick.
+bool stopLoss(string direction,double lastPrice,double bidPrice,double askPrice,string instrumentID){
+    double tickPrice=getPriceTick(instrumentID);
+    if(direction=="0"){//多头逆向加仓
+        if(userHoldPst.longHoldAvgPrice != 0 && techCls.stageTick != -1){
+            if(lastPrice >= (userHoldPst.longHoldAvgPrice+techCls.stageTick*tickPrice)){
+                if(techCls.stageStopLossPrice == 0){
+                    techCls.stageStopLossPrice = bidPrice - techCls.stageTick*tickPrice;
+                    LOG(INFO)<<"initialize stageStopLossPrice="+boost::lexical_cast<string>(techCls.stageStopLossPrice);
+                }else if(techCls.stageStopLossPrice < bidPrice - techCls.stageTick*tickPrice){//price jump to higher
+                    double tmpsslp = techCls.stageStopLossPrice;
+                    techCls.stageStopLossPrice = bidPrice - techCls.stageTick*tickPrice;
+                    LOG(INFO)<<"price go up even higher,set stageStopLossPrice from "+boost::lexical_cast<string>(tmpsslp)+",to "
+                               +boost::lexical_cast<string>(techCls.stageStopLossPrice);
+                }
+            }else{
+                LOG(INFO)<<"lastPrice="+boost::lexical_cast<string>(lastPrice)+"<longAvgPrice="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+
+                           "+stageTick="+boost::lexical_cast<string>(techCls.stageTick)+",not update stageStopLossPrice.";
+            }
+        }else{
+            LOG(INFO)<<"longAvgPrice="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice)+",stageTick="+boost::lexical_cast<string>(techCls.stageTick)
+                       +",not process.";
+        }
+        //judge if we will stop loss
+        if(techCls.stageStopLossPrice!=0&&lastPrice<=techCls.stageStopLossPrice){
+            LOG(INFO)<<"lastPrice="+boost::lexical_cast<string>(lastPrice)
+                        +"<="+boost::lexical_cast<string>(techCls.stageStopLossPrice)
+                       +",longHoldAvgPrice="+boost::lexical_cast<string>(userHoldPst.longHoldAvgPrice);
+            if(existUntradeOrder("2001",&orderInfo)){
+                LOG(INFO)<<"There are untrade order for long reverse stop loss(real is stop profit),not process.";
+                //change to follow the price
+                return true;
+            }else{
+                LOG(INFO)<<"多头逆向stoploss(real is 止盈)出局,下平仓单";
+                tryAllOrderAction(instrumentID);
+                userHoldPst.allPstClean="1";
+                AdditionOrderInfo* addinfo=new AdditionOrderInfo();
+                addinfo->openStgType="2001";
+                double odPrice=0;
+                if(techCls.isTestInviron){
+                    odPrice=lastPrice;
+                }else{
+                    InstrumentInfo* insinfo = getInstrumentInfo(instrumentID);
+                    odPrice=insinfo->LowerLimitPrice;
+                }
+                addNewOrderTrade(instrumentID,"1","1",odPrice,userHoldPst.longTotalPosition,"agg",addinfo);
+                return true;
+            }
+        }else{
+            return false;
+        }
+    }else{
+        LOG(ERROR)<<"错误的加仓类型,direction="+direction;
+        return false;
+    }
+}
 void processOtherOpen(OrderFieldInfo* realseInfo,list<WaitForCloseInfo*>* userPstList){
     bool thingFound = false;
     WaitForCloseInfo* wfcInfo;
@@ -6223,6 +6300,8 @@ void coverYourAss(){
     tmpLongReverseList.clear();
     longReverseList.clear();
     tryAllOrderAction("");
+    techCls.stageTick=-1;
+    techCls.stageStopLossPrice=0;
     techCls.priceStatus="0";
     techCls.stgStatus="0";
     techCls.firstOpenPrice=0;
@@ -6356,4 +6435,57 @@ int getFBNAOrderVolume(list<WaitForCloseInfo*> &orderList,string direction){
         LOG(ERROR)<<"order list size is "+ boost::lexical_cast<string>(orderList.size())+",is less than 2.";
     }
     return hopeVolume;
+}
+void setStageTick(string priceStatus,int grade){
+    ///<=2,stageTick=2
+    ///[3,5],1
+    /// (5,],0
+    if(priceStatus == "5"){//in two status
+        int tmpst = techCls.stageTick;
+        if(grade <=2){
+            techCls.stageTick = 2;
+        }else if (grade >=3 && grade <=5){
+            techCls.stageTick = 1;
+        }else if(grade >= 6){
+            techCls.stageTick = 0;
+        }
+        LOG(INFO)<<"In two status,set stage tick,current grade="+boost::lexical_cast<string>(grade)+",before stageTick="
+                   +boost::lexical_cast<string>(tmpst)+",after stage tick="+boost::lexical_cast<string>(techCls.stageTick);
+    }
+}
+bool whichMarketDataFast(string src,string updateTime){
+    boost::recursive_mutex::scoped_lock SLock4(unique_fast);//锁定
+    unordered_map<string, int>::iterator whichFastIT = whichFast.find(updateTime);
+    if(whichFastIT == whichFast.end()){//not find,mean fast
+        whichFast[updateTime]=1;
+        if(src=="sl"){
+            techCls.slFastAmount+=1;
+        }else if(src=="slGuava"){
+            techCls.slGuavaFastAmount+=1;
+        }else if(src=="XQN"){
+            techCls.XQNFastAmount+=1;
+        }
+        string msg="sl="+boost::lexical_cast<string>(techCls.slFastAmount)+",slGuava="+boost::lexical_cast<string>(techCls.slGuavaFastAmount)+",xqn="+
+                boost::lexical_cast<string>(techCls.XQNFastAmount);
+        cout<<msg<<endl;
+        return true;
+    }else{
+        return false;
+    }
+
+}
+string outc(char c)
+{
+    string msg="";
+    unsigned char k = 0x80;
+    for (int i=0; i<8; i++, k >>= 1){
+        if (c & k){
+            //printf("1");
+            msg.append("1");
+        }else{
+            //printf("0");
+            msg.append("0");
+        }
+    }
+    return msg;
 }

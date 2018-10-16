@@ -1,0 +1,4 @@
+#ifndef SOCKET_MULTICAST_H
+#define SOCKET_MULTICAST_H
+
+#endif // SOCKET_MULTICAST_H

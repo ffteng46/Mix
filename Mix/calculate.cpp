@@ -7,7 +7,7 @@
 #include <glog/logging.h>
 calculate::calculate()
 {
-    num = 20;
+	num = 20;
 }
 
 

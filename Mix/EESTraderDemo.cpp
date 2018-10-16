@@ -793,6 +793,7 @@ void TraderDemo::reqOrderInsert(EES_EnterOrderField* orderField,AdditionOrderInf
     /* 每个字段，按照=分隔符进行分割                                        */
     /************************************************************************/
     try {
+        ///replace
         RESULT iResult = m_tradeApi->EnterOrder(orderField);
         if(iResult == 0){//save original order info
             storeInitOrders(orderField,aoi);
@@ -852,7 +853,6 @@ void TraderDemo::reqOrderAction(EES_CancelOrder* order) {
         }
     }
 }
-
 void TraderDemo::CxlOrder()
 {
     string str_temp;
@@ -998,7 +998,6 @@ bool isMyOrder_OrderAccept(EES_OrderAcceptField* pAccept,OriginalOrderFieldInfo*
         return false;
     }
 }
-
 void TraderDemo::OnOrderAccept(EES_OrderAcceptField* pAccept){
     //报单结构体
     OriginalOrderFieldInfo* oriOrderField;
@@ -1055,7 +1054,6 @@ bool isMyOrder_MarketAccept(EES_OrderMarketAcceptField* pAccept,OriginalOrderFie
         return false;
     }
 }
-
 void TraderDemo::OnOrderMarketAccept(EES_OrderMarketAcceptField* pAccept)
 {
     boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
@@ -1210,7 +1208,6 @@ bool isMyTrade(EES_OrderExecutionField* pExec,OriginalOrderFieldInfo* oriOrderFi
         return false;
     }
 }
-
 void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
 {
     boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
@@ -1501,12 +1498,20 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="6";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
+        if(techCls.lockFirstOpenPrice ==0 ){
+            double tmplfop = techCls.lockFirstOpenPrice;
+            techCls.lockFirstOpenPrice = realseInfo->Price;
+            LOG(INFO)<<"this is first trade price of locking.set lockFirstOpenPrice from "+boost::lexical_cast<string>(tmplfop)
+                       +" to "+boost::lexical_cast<string>(techCls.lockFirstOpenPrice);
+
+        }
         if(!oriOrderField->isFirstOpen){
             lockInit();
             oriOrderField->isFirstOpen=true;
             LOG(INFO) << "This is two status's lock execution.";
             LOG(INFO)<<"This is open position order.";
             storeTradedOrder(realseInfo,oriOrderField);
+
             /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
             wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
             wfcInfo1->openStgType = oriOrderField->openStgType;
@@ -1538,6 +1543,8 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         LOG(INFO)<<"This is stop profit trade.2071,short position unlock.";
         string tmpsts=techCls.priceStatus;
         double preUnlp = techCls.unlockPrice;
+        //reset lockFirstOpenPrice
+        techCls.lockFirstOpenPrice=0;
         techCls.priceStatus="7";
         techCls.unlockPrice=realseInfo->Price;
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus+",and set unlockPrice from "+boost::lexical_cast<string>(preUnlp)+" to "+boost::lexical_cast<string>(techCls.unlockPrice);
@@ -1617,6 +1624,7 @@ void storeTradedOrder(OrderFieldInfo* realseInfo,OriginalOrderFieldInfo* oriOrde
     tmpLongReverseList.push_back(wfcInfo1);
     longReverseList.push_back(wfcInfo2);
 }
+
 bool isNormalTrade(string orderType){
     LOG(INFO) << "isNormalTrade:orderType=" + orderType;
     if(orderType == "50" || orderType == "51" || orderType == "500"|| orderType == "501"|| orderType == "510"|| orderType == "511"){
@@ -1862,7 +1870,6 @@ void aggStrategy(TradeFieldInfo* realseInfo){
     }
 
 }
-
 void TraderDemo::OnOrderCxled(EES_OrderCxled* pOrder){
     boost::recursive_mutex::scoped_lock SLock4(unique_mtx);//锁定
     //开始时间

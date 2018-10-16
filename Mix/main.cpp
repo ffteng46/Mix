@@ -13,6 +13,7 @@
 #include <list>
 #include <boost/lexical_cast.hpp>
 #include "TimeProcesser.h"
+#include "DFITCMdXQN.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -25,13 +26,11 @@
 #include <string.h>
 #include "Strategy.h"
 #include "calculate.h"
-#include "LockFreeQueue2.h"
+#include "guava_demo.h"
 //using namespace std;
 
 #define BUFFER_SIZE 1024
-
 using namespace std;
-using namespace LOCK_FREE;
 //CTechMetric ctm;
 Strategy techCls;
 calculate cal;
@@ -45,11 +44,15 @@ SpecOrderField* sof = new SpecOrderField();
 OrderInfo orderInfo;
 bool testSwitch=false;
 bool isInstrumentInit=false;
-bool recordMSG=true;
+bool recordMSG=false;
 string currTime="";
-typedef ArrayLockFreeQueue<EESMarketDepthQuoteData,	MULTI_THREAD_FALSE, MULTI_THREAD_FALSE>	ArrayDataQueue;
-ArrayDataQueue queue;			// the queue for recved data from socket
-pthread_t pid;
+unordered_map<string, int> whichFast;
+boost::recursive_mutex unique_fast;//unique lock
+guava_demo *guavaDriver = new guava_demo();
+pthread_t guavaPid;
+string slLocalIP="1.1.1.145";
+string slGuavaIP="233.54.1.100";
+int slGuavaPort=30100;
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list
@@ -244,6 +247,12 @@ void mkdataInit();
 void testlist();
 recursive_mutex g_lock_ti;//tradeinfo lock
 recursive_mutex g_lock_log;//log lock
+//vector<string> split(string str, string pattern);
+//DWORD WINAPI sendByClient(LPVOID lpparameter);          //客户端方式发送
+//DWORD WINAPI sendByServer(LPVOID lpparameter);          //客户端方式发送
+///for test
+vector<EESMarketDepthQuoteData*> allMk;
+int mkAmount=0;
 //行情锁
 boost::recursive_mutex mkdata_mtx;
 void startSendMDThread(int sendtype);//发送类型 0：以客户端方式发送；1，以服务端方式发送
@@ -429,6 +438,20 @@ void datainit() {
                 techCls.periodMinOne = boost::lexical_cast<int>(vec[1]);
             }else if ("periodSecOne" == vec[0]) {
                 techCls.periodSecOne = boost::lexical_cast<int>(vec[1]);
+            }else if ("stopProfitTickInfo" == vec[0]) {
+                string spreadList = vec[1];
+                vector<string> tmp_splists = split(spreadList,",");
+                for (int i = 0; i < tmp_splists.size();i++) {
+                    string tmp_str = tmp_splists[i];
+                    vector<string> tickinfovec = split(tmp_str,"=");
+                    techCls.stopProfitTickMap[tickinfovec[0]]=boost::lexical_cast<int>(tickinfovec[1]);
+                }
+                for(unordered_map<string, int>::iterator tmpit = techCls.stopProfitTickMap.begin();tmpit != techCls.stopProfitTickMap.end();tmpit++){
+                    string graden = tmpit->first;
+                    int tickn = tmpit->second;
+                    string tmpmsg="graden=" + graden+",tickn="+boost::lexical_cast<string>(tickn);
+                    cout<<tmpmsg<<endl;
+                }
             }
             else if ("remoteTradeServerPort" == vec[0]) {
                 remoteTradeServerPort = boost::lexical_cast<int>(vec[1]);
@@ -675,8 +698,9 @@ void startSendMDThread(int sendtype)
     //TraderDemo temp;
     //temp.m_queryServerIp = boost::lexical_cast<string>(TRADE_FRONT_ADDR);
     thread_log_group.create_thread(&startTCPServer);
-    //thread_log_group.create_thread(processStrategy);
-    //thread_log_group.create_thread(metricProcesser);
+    //startXQN();
+    thread_log_group.create_thread(&startXQN);
+    thread_log_group.create_thread(boost::bind(&guava_demo::run,guavaDriver));//bind funtion run to guavaDriver instance
 }
 
 

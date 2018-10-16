@@ -41,7 +41,7 @@ public:
 	
 	/// \brief 测试入口函数
 	void Run();
-
+    void ShowQuoteSim(EESMarketDepthQuoteData* pDepthMarketData);
 private:
     /// \brief 初始化
     bool Init();

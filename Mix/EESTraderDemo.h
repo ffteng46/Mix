@@ -18,7 +18,6 @@ typedef void*		T_DLL_HANDLE;
 
 #include <string>
 #include "EesTraderApi.h"
-
 using std::string;
 
 class TraderDemo : public EESTraderEvent
@@ -29,7 +28,6 @@ public:
 
 	/// \brief 测试入口函数
 	void Run();
-
 private:
 	/// \brief 初始化
 	bool Init();
@@ -73,6 +71,10 @@ public:
     void reqInstruments();
     void reqQryInvestorPosition();
     void reqQryInvestorAccount();
+    void OnOrderAcceptSim(EES_OrderAcceptField* pAccept);
+    void OnOrderMarketAcceptSim(EES_OrderMarketAcceptField* pAccept);
+    void OnOrderExecutionSim(EES_OrderExecutionField* pExec);
+    void OnOrderCxledSim(EES_OrderCxled* pOrder);
 private:
 	/// \brief 服务器连接事件
 	virtual void OnConnection(ERR_NO errNo, const char* pErrStr);
