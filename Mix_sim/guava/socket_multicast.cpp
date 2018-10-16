@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
-//#include <asm/errno.h>
+#include <asm/errno.h>
 
 #endif
 
@@ -391,11 +391,15 @@ void* socket_multicast::on_socket_server_event_thread()
 		socklen_t len = sizeof(sockaddr_in);
 
 		n_rcved = recvfrom(m_sock, line, RCV_BUF_SIZE, 0, (struct sockaddr*)&muticast_addr, &len);
-        if ( n_rcved <= 0)
+		if ( n_rcved < 0) 
 		{
 			continue;
-        }
-        else
+		} 
+		else if (0 == n_rcved)
+		{
+			continue;
+		}					
+		else
 		{
 			report_user(EVENT_RECEIVE, m_id, line, n_rcved);				
 		}	

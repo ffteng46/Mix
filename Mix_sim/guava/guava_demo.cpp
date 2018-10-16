@@ -7,9 +7,7 @@ using std::cout;
 using std::cin;
 using std::endl;
 
-extern string slLocalIP;
-extern string slGuavaIP;
-extern int slGuavaPort;
+
 guava_demo::guava_demo(void)
 {
 	m_quit_flag = false;
@@ -47,18 +45,62 @@ void guava_demo::run()
 
 void guava_demo::input_param()
 {
-    string local_ip = slLocalIP;
-    cout << "SHENGLI GUAVA LOCALIP: " << local_ip << endl;
-    string guava_ip = slGuavaIP;
-    int guava_port = slGuavaPort;
-    string guava_local_ip = local_ip;
-    int guava_local_port = 23501;
+	string local_ip = "1.1.1.123";
+	string str_temp;
+	string str_no = "n";
+
+	cout << "本机地址: " << local_ip << endl;
+	cout << "是否使用本机地址 (y/n) ";
+	cin >> str_temp;
+	if (str_no == str_temp)
+	{
+		cout << "请输入新的本机地址: ";
+		cin >> str_temp;
+		local_ip = str_temp;
+	}
+
+	string cffex_ip = "233.54.1.100";
+	int cffex_port = 30800;
+	string cffex_local_ip = local_ip;
+	int cffex_local_port = 23501;
 
 
-    cout << "mk multicast ip: " << guava_ip << endl;
-    cout << "mk multicast port: " << guava_port << endl;
-    cout << "mk multicast local ip: " << guava_local_ip << endl;
-    cout << "mk multicast local port: " << guava_local_port << endl;
+	cout << "行情通道组播地址: " << cffex_ip << endl;
+	cout << "行情通道组播端口: " << cffex_port << endl;
+	cout << "行情通道本机地址: " << cffex_local_ip << endl;
+	cout << "行情通道本机端口: " << cffex_local_port << endl;
+	cout << "是否使用缺省配置 (y/n) ";
+	cin >> str_temp;
+	if (str_no == str_temp)
+	{
+		cout << "是否使用缺省行情通道组播地址 " << cffex_ip << " (y/n) ";
+		cin >> str_temp;
+		if (str_no == str_temp)
+		{
+			cout << "请输入新的行情通道组播地址: ";
+			cin >> str_temp;
+			cffex_ip = str_temp;
+		}
+
+		cout << "是否使用缺省行情通道组播端口 " << cffex_port << " (y/n) ";
+		cin >> str_temp;
+		if (str_no == str_temp)
+		{
+			cout << "请输入新的行情通道组播端口: ";
+			cin >> str_temp;
+			cffex_port = atoi(str_temp.c_str());
+		}
+
+		cout << "是否使用缺省行情通道本机端口 " << cffex_local_port << " (y/n) ";
+		cin >> str_temp;
+		if (str_no == str_temp)
+		{
+			cout << "请输入新的行情通道本机端口: ";
+			cin >> str_temp;
+			cffex_local_port = atoi(str_temp.c_str());
+		}
+	}
+
 
 	/// add by zhou.hu review 2014/4/24 设置具体的参数
 	multicast_info temp;
@@ -66,10 +108,10 @@ void guava_demo::input_param()
 	/// add by zhou.hu review 2014/4/23 中金行情通道
 	memset(&temp, 0, sizeof(multicast_info));
 	
-    strcpy(temp.m_remote_ip, guava_ip.c_str());
-    temp.m_remote_port = guava_port;
-    strcpy(temp.m_local_ip, guava_local_ip.c_str());
-    temp.m_local_port = guava_local_port;
+	strcpy(temp.m_remote_ip, cffex_ip.c_str());
+	temp.m_remote_port = cffex_port;
+	strcpy(temp.m_local_ip, cffex_local_ip.c_str());
+	temp.m_local_port = cffex_local_port;
 
 	m_cffex_info = temp;
 }

@@ -13,6 +13,7 @@
 #include <list>
 #include <boost/lexical_cast.hpp>
 #include "TimeProcesser.h"
+#include "DFITCMdXQN.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -25,6 +26,7 @@
 #include <string.h>
 #include "Strategy.h"
 #include "calculate.h"
+#include "guava_demo.h"
 //using namespace std;
 
 #define BUFFER_SIZE 1024
@@ -42,8 +44,13 @@ SpecOrderField* sof = new SpecOrderField();
 OrderInfo orderInfo;
 bool testSwitch=false;
 bool isInstrumentInit=false;
-bool recordMSG=true;
+bool recordMSG=false;
 string currTime="";
+guava_demo *guavaDriver = new guava_demo();
+pthread_t guavaPid;
+string slLocalIP="1.1.1.145";
+string slGuavaIP="233.54.1.100";
+int slGuavaPort=30100;
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list
@@ -241,6 +248,11 @@ recursive_mutex g_lock_log;//log lock
 //vector<string> split(string str, string pattern);
 //DWORD WINAPI sendByClient(LPVOID lpparameter);          //客户端方式发送
 //DWORD WINAPI sendByServer(LPVOID lpparameter);          //客户端方式发送
+///for test
+vector<EESMarketDepthQuoteData*> allMk;
+int mkAmount=0;
+//行情锁
+boost::recursive_mutex mkdata_mtx;
 void startSendMDThread(int sendtype);//发送类型 0：以客户端方式发送；1，以服务端方式发送
 void tradeinit();
 void tsocket();
@@ -258,19 +270,14 @@ int main(){
         //isInTimePeriod(mkTimePeriod);
         boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     }
+    //pQuoteApi=new QuoteDemo();
     datainit();
     testlist();
+
     //getchar();
     //system("pause");
     //tradeinit();//交易
     startSendMDThread(1);
-    mkdataInit();//行情
-    //boost::this_thread::sleep(boost::posix_time::seconds(2));
-    ptradeApi = new TraderDemo();
-    //TraderDemo tmd;
-    ptradeApi->Run();
-    // 初始化UserApi
-
     while(1){
         boost::this_thread::sleep(boost::posix_time::seconds(1000));    //microsecond,millisecn
     }
@@ -301,6 +308,9 @@ void datainit() {
             }
             else if ("marketServerIP" == vec[0]) {
                 marketServerIP = vec[1];
+            }else if ("tradingDay" == vec[0]) {
+                strcpy(tradingDay,vec[1].c_str());
+                tradingDayT=vec[1];
             }
             else if ("marketServerPort" == vec[0]) {
                 marketServerPort = boost::lexical_cast<int>(vec[1]);
@@ -346,8 +356,16 @@ void datainit() {
             }
             else if ("nJumpTriggerSL" == vec[0]) {
                 techCls.nJumpTriggerSL = boost::lexical_cast<int>(vec[1]);
-            }
-            else if ("oneNormalGap" == vec[0]) {
+            }else if ("isTestInviron" == vec[0]) {
+                string tmpiti = vec[1];
+                if("0"==tmpiti){
+                    techCls.isTestInviron=false;
+                }else if("1"==tmpiti){
+                    techCls.isTestInviron=true;
+                }else{
+                    LOG(ERROR)<<"ERROR:undefined isTestInviron type.";
+                }
+            }else if ("oneNormalGap" == vec[0]) {
                 techCls.oneNormalGap = boost::lexical_cast<int>(vec[1]);
             }else if ("oneNormalGrade" == vec[0]) {
                 techCls.oneNormalGrade = boost::lexical_cast<int>(vec[1]);
@@ -374,6 +392,8 @@ void datainit() {
             }
             else if ("twoGrade" == vec[0]) {
                 techCls.twoGrade = boost::lexical_cast<int>(vec[1]);
+            }else if ("twoGap" == vec[0]) {
+                techCls.twoGap = boost::lexical_cast<int>(vec[1]);
             }
             else if ("lrsptn" == vec[0]) {
                 techCls.lrsptn = boost::lexical_cast<int>(vec[1]);
@@ -401,6 +421,30 @@ void datainit() {
             }
             else if ("timesOfStopLoss" == vec[0]) {
                 techCls.timesOfStopLoss = boost::lexical_cast<int>(vec[1]);
+            }else if ("lockWatchTickNums" == vec[0]) {
+                techCls.lockWatchTickNums = boost::lexical_cast<int>(vec[1]);
+            }else if ("relockTickNums" == vec[0]) {
+                techCls.relockTickNums = boost::lexical_cast<int>(vec[1]);
+            }else if ("drawbackTickRate" == vec[0]) {
+                techCls.drawbackTickRate = boost::lexical_cast<double>(vec[1]);
+            }else if ("periodMinOne" == vec[0]) {
+                techCls.periodMinOne = boost::lexical_cast<int>(vec[1]);
+            }else if ("periodSecOne" == vec[0]) {
+                techCls.periodSecOne = boost::lexical_cast<int>(vec[1]);
+            }else if ("stopProfitTickInfo" == vec[0]) {
+                string spreadList = vec[1];
+                vector<string> tmp_splists = split(spreadList,",");
+                for (int i = 0; i < tmp_splists.size();i++) {
+                    string tmp_str = tmp_splists[i];
+                    vector<string> tickinfovec = split(tmp_str,"=");
+                    techCls.stopProfitTickMap[tickinfovec[0]]=boost::lexical_cast<int>(tickinfovec[1]);
+                }
+                for(unordered_map<string, int>::iterator tmpit = techCls.stopProfitTickMap.begin();tmpit != techCls.stopProfitTickMap.end();tmpit++){
+                    string graden = tmpit->first;
+                    int tickn = tmpit->second;
+                    string tmpmsg="graden=" + graden+",tickn="+boost::lexical_cast<string>(tickn);
+                    cout<<tmpmsg<<endl;
+                }
             }
             else if ("remoteTradeServerPort" == vec[0]) {
                 remoteTradeServerPort = boost::lexical_cast<int>(vec[1]);
@@ -613,8 +657,21 @@ void testlist() {
     LOG(ERROR) << "watchUnlockAnotherATRNums=" + boost::lexical_cast<string>(techCls.watchUnlockAnotherATRNums);
     LOG(ERROR) << "afterWatchUnlockOtherATRNums=" + boost::lexical_cast<string>(techCls.afterWatchUnlockOtherATRNums);
     LOG(ERROR) << "timesOfStopLoss=" + boost::lexical_cast<string>(techCls.timesOfStopLoss);
-
+    LOG(ERROR) << "lockWatchTickNums=" + boost::lexical_cast<string>(techCls.lockWatchTickNums);
+    LOG(ERROR) << "drawbackTickRate=" + boost::lexical_cast<string>(techCls.drawbackTickRate);
+    LOG(ERROR) << "relockTickNums=" + boost::lexical_cast<string>(techCls.relockTickNums);
     LOG(ERROR) << "remoteTradeServerPort=" + boost::lexical_cast<string>(remoteTradeServerPort);
+    LOG(ERROR) << "isTestInviron=" + boost::lexical_cast<string>(techCls.isTestInviron);
+
+    LOG(ERROR) << "periodMinOne=" + boost::lexical_cast<string>(techCls.periodMinOne);
+    LOG(ERROR) << "periodSecOne=" + boost::lexical_cast<string>(techCls.periodSecOne);
+
+    if(USER_ID==0){
+        USER_ID=boost::lexical_cast<int>(INVESTOR_ID);
+    }
+    LOG(ERROR) << "userID=" + boost::lexical_cast<string>(USER_ID);
+    LOG(ERROR) << "investorID=" + boost::lexical_cast<string>(INVESTOR_ID);
+    LOG(ERROR) << "loginID=" + boost::lexical_cast<string>(LOGIN_ID);
 
 
 }
@@ -634,8 +691,9 @@ void startSendMDThread(int sendtype)
     //TraderDemo temp;
     //temp.m_queryServerIp = boost::lexical_cast<string>(TRADE_FRONT_ADDR);
     thread_log_group.create_thread(&startTCPServer);
-    //thread_log_group.create_thread(processStrategy);
-    //thread_log_group.create_thread(metricProcesser);
+    //startXQN();
+    thread_log_group.create_thread(&startXQN);
+    thread_log_group.create_thread(boost::bind(&guava_demo::run,guavaDriver));//bind funtion run to guavaDriver instance
 }
 
 
