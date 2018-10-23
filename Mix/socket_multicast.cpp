@@ -479,6 +479,16 @@ void* socket_multicast::on_socket_server_event_thread()
             if(strcmp(ptr_data->m_symbol,ppInstrumentID[0])!=0){
                 continue;
             }
+            char buf[20]={'\0'};
+            sprintf(buf, "%.2f", ptr_data->m_last_px);
+            sscanf(buf, "%lf", &ptr_data->m_last_px);
+            memset(buf, 0, 20);
+
+            sprintf(buf, "%.2f", ptr_data->m_bid_px);
+            sscanf(buf, "%lf", &ptr_data->m_bid_px);
+            memset(buf, 0, 20);
+            sprintf(buf, "%.2f", ptr_data->m_ask_px);
+            sscanf(buf, "%lf", &ptr_data->m_ask_px);
             fillMarketDataGA(ptr_data);
             guavaDriver->on_receive_nomal(ptr_data);/*
             string updateTime=string(ptr_data->m_update_time)+boost::lexical_cast<string>(ptr_data->m_millisecond);

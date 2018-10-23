@@ -97,6 +97,16 @@ static void socketRecv()
             return;
         }
         xqnamount+=1;
+        char buf[20]={'\0'};
+        sprintf(buf, "%.2f", recvMarketData.LastPrice);
+        sscanf(buf, "%lf", &recvMarketData.LastPrice);
+        memset(buf, 0, 20);
+
+        sprintf(buf, "%.2f", recvMarketData.BidPrice);
+        sscanf(buf, "%lf", &recvMarketData.BidPrice);
+        memset(buf, 0, 20);
+        sprintf(buf, "%.2f", recvMarketData.AskPrice);
+        sscanf(buf, "%lf", &recvMarketData.AskPrice);
         fillMarketData(&recvMarketData);
         addMarketData(recvMarketData);
         //testQ.push(recvMarketData);

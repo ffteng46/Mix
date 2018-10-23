@@ -564,6 +564,8 @@ void longDirectionTrade(MarketData *mkData){
                     LOG(INFO)<<"Current grade for two is "+boost::lexical_cast<string>(existGrades)
                                +",and the limit grade is "+boost::lexical_cast<string>(techCls.twoGrade);
                     setStageTick("5",existGrades);
+                    //protect code is ommit
+                    /*
                     if(existGrades >= techCls.gradeToProtect){
                         LOG(INFO)<<"In two status,over the "+boost::lexical_cast<string>(techCls.gradeToProtect)+" grade will trigger protection order for short.";
                         if(protectList.size() == 0){
@@ -607,7 +609,7 @@ void longDirectionTrade(MarketData *mkData){
                                 LOG(INFO)<<"There are orders existed at this price,not process.";
                             }
                         }
-                    }
+                    }*/
                     int tmpGrade=0;
                     for(list<WaitForCloseInfo*>::iterator wfit=tmpLongReverseList.begin();wfit != tmpLongReverseList.end();wfit++){
                         tmpGrade += 1;
