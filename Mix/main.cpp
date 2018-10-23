@@ -57,7 +57,7 @@ int slGuavaPort=30100;
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list
 list<OrderInfo*> aggTradeList;//aggressive market maker trade list
-HoldPositionInfo* holdInfo = new HoldPositionInfo();
+HoldPositionInfo* holdInfo;
 unordered_map<string, MarketData*> instrinfo;//market data
 vector<double> simPriceList;//save some simulated trade price
 boost::posix_time::time_period *mkTimePeriod;
@@ -259,6 +259,7 @@ void startSendMDThread(int sendtype);//发送类型 0：以客户端方式发送
 void tradeinit();
 void tsocket();
 int main(){
+    holdInfo = new HoldPositionInfo();
     google::InitGoogleLogging("");
     google::SetLogDestination(google::GLOG_INFO, "./Logs");
     //google::SetStderrLogging(2);
@@ -438,6 +439,8 @@ void datainit() {
                 techCls.periodMinOne = boost::lexical_cast<int>(vec[1]);
             }else if ("periodSecOne" == vec[0]) {
                 techCls.periodSecOne = boost::lexical_cast<int>(vec[1]);
+            }else if ("rawPstStopLossTickNums" == vec[0]) {
+                techCls.rawPstStopLossTickNums = boost::lexical_cast<int>(vec[1]);
             }else if ("stopProfitTickInfo" == vec[0]) {
                 string spreadList = vec[1];
                 vector<string> tmp_splists = split(spreadList,",");
@@ -672,7 +675,8 @@ void testlist() {
 
     LOG(ERROR) << "periodMinOne=" + boost::lexical_cast<string>(techCls.periodMinOne);
     LOG(ERROR) << "periodSecOne=" + boost::lexical_cast<string>(techCls.periodSecOne);
-
+    LOG(ERROR) << "rawPstStopLossTickNums=" + boost::lexical_cast<string>(techCls.rawPstStopLossTickNums);
+    LOG(ERROR) << "rawPstStopLossTickNums=" + boost::lexical_cast<string>(techCls.rawPstStopLossTickNums);
     if(USER_ID==0){
         USER_ID=boost::lexical_cast<int>(INVESTOR_ID);
     }

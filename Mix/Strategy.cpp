@@ -51,6 +51,44 @@ Strategy::~Strategy()
 {
 
 }
+void Strategy::reInitStrategyPara(){
+    allK15sList.clear();
+    KData_15s.clear();
+    KData_15m.clear();
+    trueKData15S=NULL;
+    trueKData15M=NULL;
+    tickData=new MarketData();
+    nSec = 0;
+    ATR_window = 60;
+    volatility = 0;
+    kBarNum = 15;				//取15分钟K线？
+
+    kPeriod = 60;
+    mainDirection="3";
+
+    INDEX_15s = -10;
+    INDEX_30s = -10;
+    INDEX_15m = -10;
+    INDEX_1h = -10;
+
+    kIndex_15s = -10;						//15 秒
+    kIndex_30s = -10;;						//30 秒
+    kIndex_15m = -10;;						//1分钟
+    kIndex_1h = -10;;
+    lockOverFlow=0;
+    totalLockoverFlowPL=0;
+    unlock=0;
+    totalUnlockPL=0;
+    hope=0;
+    totalHopePL=0;
+    stageTick3=0;
+    totalStageTick3PL=0;
+    stageTick2=0;
+    totalStageTick2PL=0;
+    stageTick1=0;
+    totalStageTick1PL=0;
+    totalStopPL=0;
+}
 
 void Strategy::RunMarketData(MarketData *pDepthMarketData)
 {
@@ -111,6 +149,8 @@ void Strategy::RunMarketData(MarketData *pDepthMarketData)
             vector<Kdata >::iterator it=allK15sList.end()-2;
             trueKData15S=&(*it);
             KData_15s.push_back(allK15sList[allK15sList.size()-1]);
+            LOG(INFO)<<"new create k15s.highPrice="+boost::lexical_cast<string>(trueKData15S->highPrice)+";closePrice="+boost::lexical_cast<string>(trueKData15S->closePrice)
+                       +";lowPrice="+boost::lexical_cast<string>(trueKData15S->lowPrice);
             if(!beginK15s){
                 doKcleanS(KData_15s);
                 //Kdata tmp=techCls.KData_15s.back();
@@ -219,11 +259,12 @@ void Strategy::RunMarketData(MarketData *pDepthMarketData)
     }
     //mainDirection="0";
     LOG(INFO)<<"AFTER:INDEX_15s="+boost::lexical_cast<string>(INDEX_15s)+",INDEX_15m="+boost::lexical_cast<string>(INDEX_15m);
+/*
     if(techCls.isTestInviron){
         mainDirection="0";
         beginK15s=true;
         return;
-    }
+    }*/
     if(genKLine_15m&&trueKData15M){
         string msg="businessType=wtm_6001;tradingDay="+tradingDayT+";logTime="+currTime + ";logType=1;log=diff="+boost::lexical_cast<string>(trueKData15M->macd_diff) +","
                 +"dea="+boost::lexical_cast<string>(trueKData15M->macd_dea) +","
@@ -235,6 +276,47 @@ void Strategy::RunMarketData(MarketData *pDepthMarketData)
         if(trueKData15M->macd_dea==0||trueKData15M->ma20==0||trueKData15M->ma10==0){
             //return;
         }
+        ///
+        //save previous status
+        preMainDir=mainDirection;
+        if(trueKData15M->macd_diff>trueKData15M->macd_dea
+                &&trueKData15M->ma5>trueKData15M->ma20
+                &&trueKData15M->ma10>trueKData15M->ma20){//main direction is long
+            if(mainDirection=="1"){
+                mainDirection="4";
+                stgStatus="120";
+                LOG(INFO)<<"previous main direction=1,current is 0.suprise. step into chaos,wait for confirming.....";
+            }else{
+                mainDirection="0";
+            }
+        }else if(trueKData15M->macd_diff < trueKData15M->macd_dea
+                 &&trueKData15M->ma5 < trueKData15M->ma20
+                 &&trueKData15M->ma10 < trueKData15M->ma20){
+            if(mainDirection=="0"){
+                mainDirection="4";
+                stgStatus="121";
+                LOG(INFO)<<"previous main direction=0,current is 1.suprise. step into chaos,wait for confirming.....";
+            }else{
+                mainDirection="1";
+            }
+
+        }else{
+            double tick = getPriceTick(pDepthMarketData->instrumentID);
+            if((preMainDir=="0" && pDepthMarketData->lastPrice >= (trueKData15M->ma5 + 2*tick)) || (preMainDir=="1" && pDepthMarketData->lastPrice <= (trueKData15M->ma5 - 2*tick))){
+                mainDirection = preMainDir;
+                LOG(INFO)<<"though main direction become chaos,but price still give us a direction.lastPrice="+boost::lexical_cast<string>(pDepthMarketData->lastPrice)+",ma5="
+                           +boost::lexical_cast<string>(trueKData15M->ma5);
+            }else{
+                mainDirection="4";
+                stgStatus="10";
+                LOG(INFO)<<"main direction step into chaos,wait for confirming.....";
+            }
+        }
+        return;
+        /**
+          *below maybe delete
+          *
+          * */
         if(trueKData15M->macd_diff>trueKData15M->macd_dea
                 &&trueKData15M->ma5>trueKData15M->ma20
                 &&trueKData15M->ma10>trueKData15M->ma20){//main direction is long
@@ -590,10 +672,10 @@ void Strategy::run_tech_lib(vector<Kdata > &vectorKData)
     cal.MA(vectorKData);
 
     cal.dural_trust(vectorKData,ks);
-    */
+
     cout << "MACD diff: " << vectorKData[vectorKData.size() - 2].macd_diff << " ;; dea: " << vectorKData[vectorKData.size() - 2].macd_dea << " :;sign: " << vectorKData[vectorKData.size() - 2].macd_sign
         << " uprange " << vectorKData[vectorKData.size() - 1].up_range << "  down_range  " << vectorKData[vectorKData.size() - 1].down_range << endl;
-
+    */
 }
 /*
 void Strategy::update_listcontrol(int updatetime)

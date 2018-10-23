@@ -782,6 +782,16 @@ int getFBNAOrderVolume(list<WaitForCloseInfo*> &orderList,string direction);
 void closeProtectOrders();
 void initInfrastructure(list<string> comOrdersList);
 void setStageTick(string priceStatus,int grade);
+void setAddMinPrice(double lastPrice,string direction);
 bool whichMarketDataFast(string src,string updateTime);
 string outc(char c);
+void setDrawbackPrice(double lockPrice,double tickPrice,string direction);
+void setRealInfo(double lastPrice);
+string getRealInfo();
+void cleanRealInfo();
+void* lookbacktest(void* argv);
+template<class T>
+int length(T& arr);
+void reInitStrategyPara();
+void beginLookbackTest();
 #endif

@@ -22,12 +22,15 @@
 #include <errno.h>
 
 #include "socket_multicast.h"
+#include "guava_quote.h"
+#include "guava_demo.h"
+#include "property.h"
 using std::cout;
 using std::endl;
 using std::stringstream;
 
-
-
+extern guava_demo *guavaDriver;
+extern char **ppInstrumentID;// 行情订阅列表
 #ifdef SHENGLI_WINDOWS
 
 
@@ -372,7 +375,76 @@ void* socket_multicast::socket_server_event_thread(void* ptr_param)
 
 	return ptr_this->on_socket_server_event_thread();
 }
+/**
+    unsigned int	m_sequence;				///<会话编号
+    char			m_exchange_id;			///<市场  0 表示中金  1表示上期
+    char			m_channel_id;			///<通道编号
+    char			m_quote_flag;			///<行情标志  0 无time sale,无lev1,
+                                            ///           1 有time sale,无lev1,
+                                            ///           2 无time sale,有lev1,
+                                            ///           3 有time sale,有lev1
+    char			m_symbol[8];			///<合约
+    char			m_update_time[9];		///<最后更新时间(秒)
+    int				m_millisecond;			///<最后更新时间(毫秒)
 
+    double			m_last_px;				///<最新价
+    int				m_last_share;			///<最新成交量
+    double			m_total_value;			///<成交金额
+    double			m_total_pos;			///<持仓量
+    double			m_bid_px;				///<最新买价
+    int				m_bid_share;			///<最新买量
+    double			m_ask_px;				///<最新卖价
+    int				m_ask_share;			///<最新卖量
+  */
+/***
+ * 0  无 time sale,  无lev1
+1  有 time sale，  无lev1
+2  无 time sale,   有  lev1
+3  有 time sale,  有 lev1
+说明：timesale  与 lev1 对应这字段说明
+time sale  对应字段：  last_px
+last_share
+total_value
+total_pos
+lev1对应字段:   bid_px
+bid_share
+ask_px
+ask_share */
+guava_udp_normal preMarketDataGa;
+void fillMarketDataGA(guava_udp_normal* recvMarketData){
+    if(recvMarketData->m_quote_flag == 0){//0  无 time sale,  无lev1
+        cout<<"ga use previous lastPrice."<<endl;
+        recvMarketData->m_last_px=preMarketDataGa.m_last_px;
+        recvMarketData->m_total_value=preMarketDataGa.m_total_value;
+        recvMarketData->m_last_share=preMarketDataGa.m_last_share;
+        recvMarketData->m_total_pos=preMarketDataGa.m_total_pos;
+
+        recvMarketData->m_bid_px=preMarketDataGa.m_bid_px;
+        recvMarketData->m_bid_share=preMarketDataGa.m_bid_share;
+        recvMarketData->m_ask_px=preMarketDataGa.m_ask_px;
+        recvMarketData->m_ask_share=preMarketDataGa.m_ask_share;
+    }else if(recvMarketData->m_quote_flag == 1){//1  有 time sale，  无lev1
+        recvMarketData->m_bid_px=preMarketDataGa.m_bid_px;
+        recvMarketData->m_bid_share=preMarketDataGa.m_bid_share;
+        recvMarketData->m_ask_px=preMarketDataGa.m_ask_px;
+        recvMarketData->m_ask_share=preMarketDataGa.m_ask_share;
+    }else if(recvMarketData->m_quote_flag == 2){//2  无 time sale,   有  lev1
+        recvMarketData->m_last_px=preMarketDataGa.m_last_px;
+        recvMarketData->m_total_value=preMarketDataGa.m_total_value;
+        recvMarketData->m_last_share=preMarketDataGa.m_last_share;
+        recvMarketData->m_total_pos=preMarketDataGa.m_total_pos;
+    }else if(recvMarketData->m_quote_flag == 3){//3  有 time sale,  有 lev1
+        preMarketDataGa.m_last_px=recvMarketData->m_last_px;
+        preMarketDataGa.m_total_value=recvMarketData->m_total_value;
+        preMarketDataGa.m_last_share=recvMarketData->m_last_share;
+        preMarketDataGa.m_total_pos=recvMarketData->m_total_pos;
+
+        preMarketDataGa.m_bid_px=recvMarketData->m_bid_px;
+        preMarketDataGa.m_bid_share=recvMarketData->m_bid_share;
+        preMarketDataGa.m_ask_px=recvMarketData->m_ask_px;
+        preMarketDataGa.m_ask_share=recvMarketData->m_ask_share;
+    }
+}
 void* socket_multicast::on_socket_server_event_thread()
 {
 	char line[RCV_BUF_SIZE] = "";
@@ -385,7 +457,8 @@ void* socket_multicast::on_socket_server_event_thread()
 	muticast_addr.sin_family = AF_INET;
 	muticast_addr.sin_addr.s_addr = inet_addr(m_remote_ip.c_str());	
 	muticast_addr.sin_port = htons(m_remote_port);
-
+    unordered_map<string, int> recvTimeMap;
+    string instrumentID=string(ppInstrumentID[0]);
 	while (true)
 	{
 		socklen_t len = sizeof(sockaddr_in);
@@ -396,8 +469,24 @@ void* socket_multicast::on_socket_server_event_thread()
 			continue;
         }
         else
-		{
-			report_user(EVENT_RECEIVE, m_id, line, n_rcved);				
+        {/*
+            m_event->on_receive_message(m_id, line, n_rcved);
+            if (len < sizeof(guava_udp_normal))
+            {
+                continue;
+            }*/
+            guava_udp_normal* ptr_data = (guava_udp_normal*)(line);
+            if(strcmp(ptr_data->m_symbol,ppInstrumentID[0])!=0){
+                continue;
+            }
+            fillMarketDataGA(ptr_data);
+            guavaDriver->on_receive_nomal(ptr_data);/*
+            string updateTime=string(ptr_data->m_update_time)+boost::lexical_cast<string>(ptr_data->m_millisecond);
+            unordered_map<string, int>::iterator whichFastIT = recvTimeMap.find(updateTime);
+            if(whichFastIT == recvTimeMap.end()){//not find,mean fast
+                recvTimeMap[updateTime]=1;
+
+            }*/
 		}	
 
 		//检测线程退出信号

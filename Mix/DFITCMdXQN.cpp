@@ -22,6 +22,8 @@ using namespace LOCK_FREE;
 extern unordered_map<string, InstrumentInfo*> instruments;			//合约信息
 extern unordered_map<string, MarketData*> instrinfo;//market data
 extern char **ppInstrumentID;// 行情订阅列表
+extern int start_process;
+extern Strategy techCls;
 //接收缓冲区大小
 #define MAXLINE 2048
 
@@ -75,15 +77,24 @@ static void socketRecv()
 	int n = 0;
 	memset(&recvMarketData,0,sizeof(recvMarketData));
     //memcpy(tickData, pDepthMarketData, sizeof(MarketData));
-    printf("XQN MARKETDATA:Recv instrumentID=%s",ppInstrumentID[0]);
+    printf("XQN MARKETDATA SUCCESS:Recv instrumentID=%s",ppInstrumentID[0]);
     char *instrID=ppInstrumentID[0];
+    string instrumentID=string(ppInstrumentID[0]);
+    char buf[512] = {0};
 	while(1)
 	{
 		n = recvfrom(sockfd, &recvMarketData, MAXLINE, 0, (struct sockaddr *)&cliaddr, &len);
 		if(n < 0)
 			continue;
+        LOG(INFO)<<"not equal:instrumentID="+string(recvMarketData.Instrument);
         if(strcmp(recvMarketData.Instrument,instrID)!=0){
+        //if(string(recvMarketData.Instrument) != instrumentID){
             continue;
+        }else{
+            LOG(INFO)<<"equal:instrumentID="+string(recvMarketData.Instrument);
+        }
+        if (start_process == 0) {
+            return;
         }
         xqnamount+=1;
         fillMarketData(&recvMarketData);
@@ -91,8 +102,10 @@ static void socketRecv()
         //testQ.push(recvMarketData);
         //std::cout<<"xqnamount="<<xqnamount<<endl;
 		memset(&recvMarketData,0,sizeof(recvMarketData));
+        if(xqnamount%100==0){
+            LOG(INFO)<<"xqnamount="+boost::lexical_cast<string>(xqnamount);
+        }
 	}
-	return;
 }
 double upperPrice=0;
 double lowerPrice=0;
@@ -166,11 +179,17 @@ void addMarketData(DFITCMarketDataFieldXQN &marketdata){
             ";turnover="+boost::lexical_cast<string>(marketdatainfo->turnover)+
             ";uptime=" + boost::lexical_cast<string>(marketdata.UpdateMillisec)+
             ";status="+string(tm);
-
-    std::cout<<tmpmkdata<<endl;
+    if(techCls.isTestInviron){
+        LOG(INFO)<<tmpmkdata;
+        std::cout<<tmpmkdata<<endl;
+    }
+    //std::cout<<tmpmkdata<<endl;
 
     if(whichMarketDataFast("XQN",fastJ)){
-        //metricProcesserForSingleThread(marketdatainfo);
+        if(techCls.isTestInviron){
+            return;
+        }
+        metricProcesserForSingleThread(marketdatainfo);
     }
 }
 
@@ -361,9 +380,9 @@ int startXQN()
         if (fcntl(sockfd, F_SETFL, flag) < 0)
             perror("set flag error");
         //创建打印线程
-        int err = pthread_create(&pid, NULL, XQNprintQueue, NULL);
-        if (0 != err)
-            printf("can't create thread: %s\n", strerror(err));
+        //int err = pthread_create(&pid, NULL, XQNprintQueue, NULL);
+        //if (0 != err)
+        //    printf("can't create thread: %s\n", strerror(err));
         socketRecv();
         return 0;
 }

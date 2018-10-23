@@ -1287,13 +1287,23 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     string mkType = oriOrderField->mkType;
     string function = oriOrderField->function;
     LOG(INFO) << "openStgType="+openStgType+",orderType="+orderType+",mkType=" +mkType + ",function=" +function;
-    if(openStgType=="3000"){//first open order
+    if(openStgType=="3000"||openStgType=="3100"||openStgType=="3101"){//first open order  modify for long\short
         string tmpsts=techCls.stgStatus;
-        testSwitch=true;
         techCls.stgStatus="3";
         LOG(INFO)<<"This is first order execution,set stgStatus from "+tmpsts+" to "+techCls.stgStatus;
         if(!oriOrderField->isFirstOpen){
             oriOrderField->isFirstOpen=true;
+            setRealInfo(realseInfo->Price);
+            //change direction
+            if(openStgType=="3000"){
+                LOG(INFO)<<"This is first open based on main direction is confirmed.not reset.";
+            }else if(openStgType=="3100"){
+                LOG(INFO)<<"This is first open of long based on assistant is confirmed.set mainDirection =0.";
+                techCls.mainDirection = "0";
+            }else if(openStgType=="3101"){
+                LOG(INFO)<<"This is first open of short based on assistant is confirmed.set mainDirection =1.";
+                techCls.mainDirection = "1";
+            }
             LOG(INFO) << "This is first orders's first execution,set isFirstOpen to "+boost::lexical_cast<string>(oriOrderField->isFirstOpen)
                           +",set firstOpenPrice from "+boost::lexical_cast<string>(techCls.firstOpenPrice)
                           +" to " + boost::lexical_cast<string>(realseInfo->Price);
@@ -1318,18 +1328,20 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             tmpLongReverseList.clear();
             LOG(INFO)<<"All order has been closed,so close all order's task is over.";
         }
-    }
-    else if(openStgType=="2011"){//over first open price,stop loss.all position is closed,start a new circle.some parameters should be init here.;
-        LOG(INFO)<<"This is init trade.";
-        LOG(INFO)<<"This is stop profit trade.2011 for normal stop profit.";
-        processClose(realseInfo,&allTradeList);
-    }else if(openStgType=="2022"){//2 tick jump trigger stop loss
+    }else if(openStgType=="2022"){//2 tick jump trigger stop loss.modify for long\short
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="2";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
         if(!oriOrderField->isFirstOpen){
             double tmpprice=techCls.stopLossPrice;
-            techCls.stopLossPrice=realseInfo->Price - techCls.nJumpTriggerSL*priceTick;
+            if(realseInfo->Direction=="0"){//long
+                techCls.stopLossPrice=realseInfo->Price - techCls.nJumpTriggerSL*priceTick;
+            }else if(realseInfo->Direction=="1"){//short
+                techCls.stopLossPrice=realseInfo->Price + techCls.nJumpTriggerSL*priceTick;
+            }else{
+                LOG(ERROR)<<"ERROR:undefined direction type="+realseInfo->Direction;
+            }
+
             oriOrderField->isFirstOpen=true;
             LOG(INFO) << "This is order of 2 tick jump trigger stop loss first execution,set stopLossPrice from "+boost::lexical_cast<string>(tmpprice)
                           +" to " + boost::lexical_cast<string>(techCls.stopLossPrice);
@@ -1346,7 +1358,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             LOG(INFO) << "This is 2 tick jump trigger stop loss orders's other execution,not process.";
             processOtherOpen(realseInfo,&allTradeList);
         }
-    }else if(openStgType=="2032"){//one sweet range open position
+    }else if(openStgType=="2032"){//one sweet range open position.modify for long\short
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="3";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
@@ -1366,18 +1378,19 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             LOG(INFO) << "This is one sweet orders's other execution,not process.";
             processOtherOpen(realseInfo,&allTradeList);
         }
-    }else if(openStgType=="2042"){//one normal range open position
+    }else if(openStgType=="2042"){//one normal range open position..   modify for long\short
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="4";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
         if(!oriOrderField->isFirstOpen){
             oriOrderField->isFirstOpen=true;
-            LOG(INFO) << "This is one normal first execution,should set stopLossPrice.we will be kicked out by hold cost.";
+            LOG(INFO) << "This is one normal first execution";
             if(longReverseList.size() > 0){
                 LOG(INFO)<<"All order traded before one normal has been moved to reverse list,don't need do again.";
             }else{
+                techCls.firstOpenPriceNormal = realseInfo->Price;
                 int tmplist=allTradeList.size();
-
+                LOG(INFO) << "set firstOpenPriceNormal="+boost::lexical_cast<string>(techCls.firstOpenPriceNormal);
                 tmpLongReverseList.clear();
                 longReverseList.clear();
                 //transfer all order in WaitForCloseInfo to longReverseList
@@ -1393,22 +1406,6 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
 
             LOG(INFO)<<"This is open position order.";
             storeTradedOrder(realseInfo,oriOrderField);
-            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
-            wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
-            wfcInfo1->openStgType = oriOrderField->openStgType;
-            wfcInfo1->tradeVolume = realseInfo->tradeVolume;
-            wfcInfo1->originalVolume = realseInfo->VolumeTotalOriginal;
-            wfcInfo1->direction = realseInfo->Direction;
-            wfcInfo1->openPrice = realseInfo->Price;
-            WaitForCloseInfo* wfcInfo2 = new WaitForCloseInfo();
-            wfcInfo2->marketOrderToken = realseInfo->marketOrderToken;
-            wfcInfo2->openStgType = oriOrderField->openStgType;
-            wfcInfo2->tradeVolume = realseInfo->tradeVolume;
-            wfcInfo2->originalVolume = realseInfo->VolumeTotalOriginal;
-            wfcInfo2->direction = realseInfo->Direction;
-            wfcInfo2->openPrice = realseInfo->Price;
-            tmpLongReverseList.push_back(wfcInfo1);
-            longReverseList.push_back(wfcInfo2);*/
         }else{
             LOG(INFO) << "This is one normal orders's other execution,not process.";
             processOtherOpen(realseInfo,&tmpLongReverseList);
@@ -1420,7 +1417,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
         if(!oriOrderField->isFirstOpen){
             oriOrderField->isFirstOpen=true;
-            LOG(INFO) << "This is two status first execution,should set stopLossPrice.we will be kicked out by hold cost.";
+            LOG(INFO) << "This is two status first execution.we will be kicked out by hold cost.";
             LOG(INFO)<<"This is open position order.";
             storeTradedOrder(realseInfo,oriOrderField);
             /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
@@ -1444,7 +1441,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             processOtherOpen(realseInfo,&tmpLongReverseList);
             processOtherOpen(realseInfo,&longReverseList);
         }
-    }else if(openStgType=="2052a"){//addition fbna
+    }else if(openStgType=="2052a"){//addition fbna  modify long/short
         techCls.isAddOrderOpen = true;
         LOG(INFO)<<"this is addition fbna orders,not change priceStatus,remain priceStatus= "+techCls.priceStatus+",set isAddOrderOpen = true.";
         if(!oriOrderField->isFirstOpen){
@@ -1452,28 +1449,12 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             LOG(INFO) << "This is addition fbna order's first execution,should set stopLossPrice.we will be kicked out by hold cost.";
             LOG(INFO)<<"This is open position order.";
             storeTradedOrder(realseInfo,oriOrderField);
-            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
-            wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
-            wfcInfo1->openStgType = oriOrderField->openStgType;
-            wfcInfo1->tradeVolume = realseInfo->tradeVolume;
-            wfcInfo1->originalVolume = realseInfo->VolumeTotalOriginal;
-            wfcInfo1->direction = realseInfo->Direction;
-            wfcInfo1->openPrice = realseInfo->Price;
-            WaitForCloseInfo* wfcInfo2 = new WaitForCloseInfo();
-            wfcInfo2->marketOrderToken = realseInfo->marketOrderToken;
-            wfcInfo2->openStgType = oriOrderField->openStgType;
-            wfcInfo2->tradeVolume = realseInfo->tradeVolume;
-            wfcInfo2->originalVolume = realseInfo->VolumeTotalOriginal;
-            wfcInfo2->direction = realseInfo->Direction;
-            wfcInfo2->openPrice = realseInfo->Price;
-            tmpLongReverseList.push_back(wfcInfo1);
-            longReverseList.push_back(wfcInfo2);*/
         }else{
             LOG(INFO) << "This is addition fbna order's other execution,not process.";
             processOtherOpen(realseInfo,&tmpLongReverseList);
             processOtherOpen(realseInfo,&longReverseList);
         }
-    }else if(openStgType=="p"){//
+    }else if(openStgType=="p"){//modify for long/short
         LOG(INFO)<<"this is protection order.";
         if(!oriOrderField->isFirstOpen){
             oriOrderField->isFirstOpen=true;
@@ -1493,16 +1474,17 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             processOtherOpen(realseInfo,&protectList);
         }
     }
-    else if(openStgType=="2062"){//lock
+    else if(openStgType=="2062"){//lock modify for long/short
         double tickPrice=getPriceTick(oriOrderField->instrumentID);
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="6";
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
         if(techCls.lockFirstOpenPrice ==0 ){
+            techCls.lockTimes += 1;
             double tmplfop = techCls.lockFirstOpenPrice;
             techCls.lockFirstOpenPrice = realseInfo->Price;
             LOG(INFO)<<"this is first trade price of locking.set lockFirstOpenPrice from "+boost::lexical_cast<string>(tmplfop)
-                       +" to "+boost::lexical_cast<string>(techCls.lockFirstOpenPrice);
+                       +" to "+boost::lexical_cast<string>(techCls.lockFirstOpenPrice)+";lockTimes="+boost::lexical_cast<string>(techCls.lockTimes);
 
         }
         if(!oriOrderField->isFirstOpen){
@@ -1511,64 +1493,152 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
             LOG(INFO) << "This is two status's lock execution.";
             LOG(INFO)<<"This is open position order.";
             storeTradedOrder(realseInfo,oriOrderField);
-
-            /*WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
-            wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
-            wfcInfo1->openStgType = oriOrderField->openStgType;
-            wfcInfo1->tradeVolume = realseInfo->tradeVolume;
-            wfcInfo1->originalVolume = realseInfo->VolumeTotalOriginal;
-            wfcInfo1->direction = realseInfo->Direction;
-            wfcInfo1->openPrice = realseInfo->Price;
-            WaitForCloseInfo* wfcInfo2 = new WaitForCloseInfo();
-            wfcInfo2->marketOrderToken = realseInfo->marketOrderToken;
-            wfcInfo2->openStgType = oriOrderField->openStgType;
-            wfcInfo2->tradeVolume = realseInfo->tradeVolume;
-            wfcInfo2->originalVolume = realseInfo->VolumeTotalOriginal;
-            wfcInfo2->direction = realseInfo->Direction;
-            wfcInfo2->openPrice = realseInfo->Price;
-            tmpLongReverseList.push_back(wfcInfo1);
-            longReverseList.push_back(wfcInfo2);*/
         }else{
             LOG(INFO) << "This is two status lock's other execution,not process.";
             processOtherOpen(realseInfo,&tmpLongReverseList);
             processOtherOpen(realseInfo,&longReverseList);
         }
         //relockprice will be set here also.because lock direction is reverse,so direction will change
+        ////not use.change to modify relockprice when unlock.
+        /*
         if(realseInfo->Direction == "0"){
             setRelockPrice(realseInfo->Price,tickPrice,"1");
         }else{
             setRelockPrice(realseInfo->Price,tickPrice,"0");
+        }*/
+    }else if(openStgType=="2071"||openStgType=="2071e"){//short unlock.... modify for long/short
+        LOG(INFO)<<"This is stop profit trade."+openStgType+",short position unlock.";
+        if(openStgType=="2071"){//lastPrice
+            techCls.surroundStopLoss=true;
+            LOG(INFO)<<"lastPrice has touched the preSet lockWatchTickNums and unlock,set surroundStopLoss to "+boost::lexical_cast<string>(techCls.surroundStopLoss);
         }
-    }else if(openStgType=="2071"){//short unlock
-        LOG(INFO)<<"This is stop profit trade.2071,short position unlock.";
         string tmpsts=techCls.priceStatus;
         double preUnlp = techCls.unlockPrice;
         //reset lockFirstOpenPrice
         techCls.lockFirstOpenPrice=0;
         techCls.priceStatus="7";
-        techCls.unlockPrice=realseInfo->Price;
+        if(techCls.unlockPrice==0){
+            techCls.unlockPrice=realseInfo->Price;
+            double prolss;
+            if(realseInfo->Direction=="0"){
+                prolss=(userHoldPst.shortHoldAvgPrice - realseInfo->Price)*realseInfo->tradeVolume;
+            }else{
+                prolss=(realseInfo->Price - userHoldPst.longHoldAvgPrice)*realseInfo->tradeVolume;
+            }
+            techCls.unlockPL+=prolss;
+            //when unlock,direction will be reverse
+            if(realseInfo->Direction=="0"){//long unlock,stand for our main direction is short.
+                setRelockPrice(techCls.unlockPrice,priceTick,"0");
+            }else if(realseInfo->Direction=="1"){
+                setRelockPrice(techCls.unlockPrice,priceTick,"1");
+            }else{
+                LOG(ERROR)<<"ERROR:undefied direction="+realseInfo->Direction;
+            }
+            //setRelockPrice(techCls.unlockPrice,priceTick,"0");
+        }else{
+            LOG(INFO)<<"There are multipal unlock trade orders,and unlockPrice has been set,so remain and not reset.";
+        }
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus+",and set unlockPrice from "+boost::lexical_cast<string>(preUnlp)+" to "+boost::lexical_cast<string>(techCls.unlockPrice);
         processClose(realseInfo,&longReverseList);
         processClose(realseInfo,&tmpLongReverseList);
         ///will close protect orders
         closeProtectOrders();
-    }else if(openStgType=="2081"){//long unlock
-        LOG(INFO)<<"This is stop profit trade.2081,long position unlock.";
+    }else if(openStgType=="2081"){//another pst unlock...modify for long/short
+        LOG(INFO)<<"This is stop profit trade.2081,long/short position unlock.";
         string tmpsts=techCls.priceStatus;
         techCls.priceStatus="8";
         //techCls.unlockPrice=realseInfo->Price;
         LOG(INFO)<<"set priceStatus from "+tmpsts+" to "+techCls.priceStatus;
+        int grade=tmpLongReverseList.size();
         processClose(realseInfo,&longReverseList);
         processClose(realseInfo,&tmpLongReverseList);
+        //for statistic
+        double prolss;
+        if(realseInfo->Direction=="0"){
+            prolss=(userHoldPst.shortHoldAvgPrice - realseInfo->Price)*realseInfo->tradeVolume;
+        }else{
+            prolss=(realseInfo->Price - userHoldPst.longHoldAvgPrice)*realseInfo->tradeVolume;
+        }
+        techCls.unlockPL+=prolss;
+        string msg="tradeType=lock;lockTimes="+boost::lexical_cast<string>(techCls.lockTimes)+";pl="+boost::lexical_cast<string>(techCls.unlockPL)+";"+getRealInfo()+";grade="+boost::lexical_cast<string>(grade);
+        LOG(INFO)<<msg;
+        //statistic
+        techCls.totalUnlockPL+=techCls.unlockPL;
+        techCls.unlock+=1;
     }else if(openStgType=="closeP"){//close protect
         LOG(INFO)<<"This is close protect trade.closeP.";
         processClose(realseInfo,&protectList);
     }
-    else if(openStgType=="2001"){// long reverse stop profit
+    else if(openStgType=="2011"){//over first open price,stop loss.all position is closed,start a new circle.some parameters should be init here.;
+        LOG(INFO)<<"This is init trade.";
+        LOG(INFO)<<"This is stop profit trade.2011 for normal stop profit.";
+        double prolss;
+        if(realseInfo->Direction=="0"){
+            prolss=(userHoldPst.shortHoldAvgPrice - realseInfo->Price)*realseInfo->tradeVolume;
+        }else{
+            prolss=(realseInfo->Price - userHoldPst.longHoldAvgPrice)*realseInfo->tradeVolume;
+        }
+        processClose(realseInfo,&allTradeList);
+        string msg="tradeType=hope;pl="+boost::lexical_cast<string>(prolss)+";"+getRealInfo();
+        LOG(INFO)<<msg;
+        //statistic
+        techCls.totalHopePL+=prolss;
+        techCls.hope+=1;
+    }else if(openStgType=="2077"){//lock times is over metric(default is 2).all position is closed,start a new circle.some parameters should be init here.;
+        LOG(INFO)<<"This is stop loss of lock times overflow.";
+        processClose(realseInfo,&longReverseList);
+        //for statistic
+        double prolss;
+        if(realseInfo->Direction=="0"){
+            prolss=(userHoldPst.shortHoldAvgPrice - realseInfo->Price)*realseInfo->tradeVolume;
+        }else{
+            prolss=(realseInfo->Price - userHoldPst.longHoldAvgPrice)*realseInfo->tradeVolume;
+        }
+        techCls.unlockPL+=prolss;
+        string msg="tradeType=lockOverFlow;pl="+boost::lexical_cast<string>(techCls.unlockPL)+";"+getRealInfo();
+        LOG(INFO)<<msg;
+        //statistic
+        techCls.totalLockoverFlowPL+=techCls.unlockPL;
+        techCls.lockOverFlow+=1;
+    }
+    else if(openStgType=="2001"){// long reverse stop profit....modify for long/short
         ////long reverse stop profit.all position is closed,start a new circle.some parameters should be init here.;
         LOG(INFO)<<"This is stop profit trade.2001";
+        double prolss;
+        if(realseInfo->Direction=="0"){
+            prolss=(userHoldPst.shortHoldAvgPrice - realseInfo->Price)*realseInfo->tradeVolume;
+        }else{
+            prolss=(realseInfo->Price - userHoldPst.longHoldAvgPrice)*realseInfo->tradeVolume;
+        }
+        int grade=tmpLongReverseList.size();
         processClose(realseInfo,&longReverseList);
 
+        string msg="tradeType=stopPL;stageTick="+boost::lexical_cast<string>(techCls.stageTick)+";pl="+boost::lexical_cast<string>(prolss)+";"+getRealInfo()+";grade="+boost::lexical_cast<string>(grade);
+        LOG(INFO)<<msg;
+        //statistic
+        if(techCls.stageTick == 3){
+            techCls.totalStageTick3PL += prolss;
+            techCls.stageTick3+=1;
+        }else if(techCls.stageTick == 2){
+            techCls.totalStageTick2PL += prolss;
+            techCls.stageTick2+=1;
+        }else if(techCls.stageTick == 1){
+            techCls.totalStageTick1PL += prolss;
+            techCls.stageTick1+=1;
+        }
+        techCls.totalStopPL += prolss;
+    }else if(openStgType=="4010"||openStgType=="4011"){//close all position immediately
+        LOG(INFO)<<"This is close all position directly trade.4000";
+        processClose(realseInfo,&longReverseList);
+        if(longReverseList.size()==0){
+            tmpLongReverseList.clear();
+            LOG(INFO)<<"All order has been closed,so close all order's task is over.";
+            if(openStgType=="4010"){
+                techCls.mainDirection="0";
+            }else if(openStgType=="4011"){
+                techCls.mainDirection="1";
+            }
+        }
     }else{
         LOG(ERROR)<<"ERROR:wrong openStgType="+openStgType;
     }
@@ -1589,13 +1659,17 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     }else{
         computeUserHoldPositionInfo(NULL);
     }
-    if(openStgType=="2001"||openStgType=="2081"){
+    if(openStgType=="2001"||openStgType=="2081"||openStgType=="2077"){
         if(longReverseList.size()==0){
             //init
             coverYourAss();
         }
     }else if(openStgType=="2011"){
         if(allTradeList.size()==0){
+            coverYourAss();
+        }
+    }else if(openStgType=="4010"||openStgType=="4011"){
+        if(userHoldPst.longTotalPosition==0&&userHoldPst.shortTotalPosition==0){
             coverYourAss();
         }
     }
@@ -1606,7 +1680,7 @@ void TraderDemo::OnOrderExecution(EES_OrderExecutionField* pExec)
     logmsg->setMsg(stg);
     networkTradeQueue.push(logmsg);*/
 }
-void storeTradedOrder(OrderFieldInfo* realseInfo,OriginalOrderFieldInfo* oriOrderField){
+void storeTradedOrder(OrderFieldInfo* realseInfo,OriginalOrderFieldInfo* oriOrderField){//modify for long/short
     WaitForCloseInfo* wfcInfo1 = new WaitForCloseInfo();
     wfcInfo1->marketOrderToken = realseInfo->marketOrderToken;
     wfcInfo1->openStgType = oriOrderField->openStgType;

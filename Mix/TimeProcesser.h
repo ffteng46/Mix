@@ -26,4 +26,5 @@ void metricProcesser();
 string getDes(PriceGapMarketData* pg);
 void metricProcesserForSingleThread(MarketData *mkData);
 bool isInTimePeriod(boost::posix_time::time_period* pTimePeriod);
+void longDirectionTrade(MarketData *mkData);
 #endif // TIMEPROCESSER_H

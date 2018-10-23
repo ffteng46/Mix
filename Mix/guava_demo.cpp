@@ -1,6 +1,7 @@
 #include <iostream>
 #include "guava_demo.h"
 #include "property.h"
+#include "TimeProcesser.h"
 
 
 using std::cout;
@@ -12,6 +13,8 @@ extern char **ppInstrumentID;// 行情订阅列表
 extern string slLocalIP;
 extern string slGuavaIP;
 extern int slGuavaPort;
+extern int start_process;
+extern Strategy techCls;
 guava_demo::guava_demo(void)
 {
 	m_quit_flag = false;
@@ -94,49 +97,16 @@ void guava_demo::pause()
 }
 double guavaUpperPrice=0;
 double guavaLowerPrice=0;
-void guava_demo::on_receive_nomal(guava_udp_normal* data)
+int guavaamount=0;
+void guava_demo::on_receive_nomal(guava_udp_normal* marketdata)
 {
-    if(strcmp(data->m_symbol,ppInstrumentID[0])!=0){
+    if (start_process == 0) {
         return;
     }
-	string str_body = to_string(data);
-
-    //cout << "receive nomal msg: " << str_body << endl;
-}
-
-string guava_demo::to_string(guava_udp_normal* marketdata)
-{
-	char buff[8192];
-
-	/// 针对于大商所做出的修改   lisen  2016/10/17
-    long long	dd_pos_temp = *(long long*)(&marketdata->m_total_pos);
-	double		dd_pos		= static_cast<double>(dd_pos_temp);
-
-	memset(buff, 0, sizeof(buff));
-	sprintf(buff, "%u,%d,%d,%s,%s,%d,%d,%.4f,%d,%.4f,%.4f,%.4f,%d,%.4f,%d"
-        ,marketdata->m_sequence
-        ,(int)(marketdata->m_exchange_id)
-        ,(int)(marketdata->m_channel_id)
-        ,marketdata->m_symbol
-        ,marketdata->m_update_time
-        , marketdata->m_millisecond
-        , (int)(marketdata->m_quote_flag)
-
-        ,marketdata->m_last_px
-        ,marketdata->m_last_share
-        ,marketdata->m_total_value
-		//,ptr->m_total_pos
-		,dd_pos
-        ,marketdata->m_bid_px
-        ,marketdata->m_bid_share
-        ,marketdata->m_ask_px
-        ,marketdata->m_ask_share
-		);
-
-    /**
-     * @brief str
-     */
-
+    guavaamount+=1;
+    if(guavaamount%100==0){
+        LOG(INFO)<<"guavaamount="+boost::lexical_cast<string>(guavaamount);
+    }
     //assemble marketdata
     string instrumentID=boost::lexical_cast<string>(marketdata->m_symbol);
     int volume = marketdata->m_last_share;//成交量
@@ -172,8 +142,8 @@ string guava_demo::to_string(guava_udp_normal* marketdata)
             marketdatainfo->simPrice = turnover/volume/multiply;
             //marketdatainfo->simPrice = turnover/volume;
         }else{
-            LOG(ERROR) << "OnRtnDepthMarketData:volume or tickPrice is zero!!!";
-            return "";
+            LOG(ERROR) << "OnRtnDepthMarketData:volume or tickPrice is zero!!!instrumentID="+instrumentID;
+            return ;
         }
         instrinfo[instrumentID] = marketdatainfo;
     }else{
@@ -198,7 +168,7 @@ string guava_demo::to_string(guava_udp_normal* marketdata)
     }
     string fastJ=marketdatainfo->updateTime+boost::lexical_cast<string>(millisecond);
     string tmpmkdata=
-            "sl;instrumentID="+marketdatainfo->instrumentID+";"+
+            "ga;instrumentID="+marketdatainfo->instrumentID+";"+
             fastJ+
             ";bidPrice1="+boost::lexical_cast<string>(marketdatainfo->bidPrice)+
             ";bidVolume1="+boost::lexical_cast<string>(marketdata->m_bid_share)+
@@ -209,11 +179,57 @@ string guava_demo::to_string(guava_udp_normal* marketdata)
             ";turnover="+boost::lexical_cast<string>(marketdatainfo->turnover)+
             ";uptime=" + boost::lexical_cast<string>(millisecond);
 
-    cout<<tmpmkdata<<endl;
+    //cout<<tmpmkdata<<endl;
+    if(techCls.isTestInviron){
+        LOG(INFO)<<tmpmkdata;
+        cout<<tmpmkdata<<endl;
+    }
 
     if(whichMarketDataFast("slGuava",fastJ)){
-        //metricProcesserForSingleThread(marketdatainfo);
+        if(techCls.isTestInviron){
+            return;
+        }
+        metricProcesserForSingleThread(marketdatainfo);
     }
+    //string str_body = to_string(data);
+
+    //cout << "receive nomal msg: " << str_body << endl;
+}
+
+string guava_demo::to_string(guava_udp_normal* marketdata)
+{
+	char buff[8192];
+
+	/// 针对于大商所做出的修改   lisen  2016/10/17
+    long long	dd_pos_temp = *(long long*)(&marketdata->m_total_pos);
+	double		dd_pos		= static_cast<double>(dd_pos_temp);
+    /*
+	memset(buff, 0, sizeof(buff));
+	sprintf(buff, "%u,%d,%d,%s,%s,%d,%d,%.4f,%d,%.4f,%.4f,%.4f,%d,%.4f,%d"
+        ,marketdata->m_sequence
+        ,(int)(marketdata->m_exchange_id)
+        ,(int)(marketdata->m_channel_id)
+        ,marketdata->m_symbol
+        ,marketdata->m_update_time
+        , marketdata->m_millisecond
+        , (int)(marketdata->m_quote_flag)
+
+        ,marketdata->m_last_px
+        ,marketdata->m_last_share
+        ,marketdata->m_total_value
+		//,ptr->m_total_pos
+		,dd_pos
+        ,marketdata->m_bid_px
+        ,marketdata->m_bid_share
+        ,marketdata->m_ask_px
+        ,marketdata->m_ask_share
+		);
+*/
+    /**
+     * @brief str
+     */
+
+
 	string str = buff;
 	return str;
 }

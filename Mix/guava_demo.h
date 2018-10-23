@@ -26,9 +26,9 @@ public:
 
 	/// \brief 示例函数入口函数
 	void run();
-
+    virtual void on_receive_nomal(guava_udp_normal* data);
 private:
-	virtual void on_receive_nomal(guava_udp_normal* data);
+
 
 	string to_string(guava_udp_normal* ptr);
 

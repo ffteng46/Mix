@@ -448,7 +448,7 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
     }
     string tmpstr = "instrumentID=" +  boost::lexical_cast<string>(pDepthMarketData->InstrumentID) + ";lastprice=" + boost::lexical_cast<string>(pDepthMarketData->LastPrice) +
         ";bidprice=" + boost::lexical_cast<string>(pDepthMarketData->BidPrice1) + ";askprice=" + boost::lexical_cast<string>(pDepthMarketData->AskPrice1);
-    cout <<"SL:"<< "marketdata=" + tmpstr <<endl;
+    //cout <<"SL:"<< "marketdata=" + tmpstr <<endl;
     sprintf(buf, "%.2f", pDepthMarketData->LastPrice);
     sscanf(buf, "%lf", &pDepthMarketData->LastPrice);
     memset(buf, 0, 20);
@@ -525,7 +525,25 @@ void QuoteDemo::ShowQuote(EESMarketDepthQuoteData* pDepthMarketData){
         }
     }
     string fastJ=marketdatainfo->updateTime+boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
+    string tmpmkdata=
+            "sl;instrumentID="+marketdatainfo->instrumentID+";"+
+            fastJ+
+            ";bidPrice1="+boost::lexical_cast<string>(marketdatainfo->bidPrice)+
+            ";bidVolume1="+boost::lexical_cast<string>(pDepthMarketData->BidVolume1)+
+            ";askPrice1="+boost::lexical_cast<string>(marketdatainfo->askPrice)+
+            ";askVolume1="+boost::lexical_cast<string>(pDepthMarketData->AskVolume1)+
+            ";lastPrice=" + boost::lexical_cast<string>(marketdatainfo->lastPrice) +
+            ";volume="+boost::lexical_cast<string>(marketdatainfo->volume)+
+            ";turnover="+boost::lexical_cast<string>(marketdatainfo->turnover)+
+            ";uptime=" + boost::lexical_cast<string>(pDepthMarketData->UpdateMillisec);
+    if(techCls.isTestInviron){
+        LOG(INFO)<<tmpmkdata;
+        cout<<tmpmkdata<<endl;
+    }
     if(whichMarketDataFast("sl",fastJ)){
+        if(techCls.isTestInviron){
+            return;
+        }
         metricProcesserForSingleThread(marketdatainfo);
     }
     //metricProcesserForSingleThread(marketdatainfo);
