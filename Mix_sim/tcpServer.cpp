@@ -4,10 +4,13 @@
 #include <boost/bind.hpp>
 #include "property.h"
 #include "tcpServer.h"
+#include <pthread.h>
+#include "TimeProcesser.h"
 using namespace std;
 extern int start_process;
 //extern CTraderSpi* pTradeUserSpi;
 extern TraderDemo* ptradeApi;
+extern boost::thread_group thread_log_group;
 extern int isTwoStartStrategy;//等于2的时候，表示明细和汇总持仓查询完毕，启动系统
 //测试队列
 extern list<LogMsg*> msgList;
@@ -22,6 +25,9 @@ int orderInsertAmount;
 extern boost::lockfree::queue<LogMsg*> networkTradeQueue;////报单、成交消息队列,网络通讯使用
 extern int remoteTradeServerPort;//交易端口e
 extern int mkAmount;
+extern bool recvOK;
+///for test
+extern list<MarketData*> allMk;
                                  // socket智能指针
 typedef boost::shared_ptr<boost::asio::ip::tcp::socket> socket_ptr;
 // 异步服务器类
@@ -94,7 +100,55 @@ public:
     }
 
 };
+static int api_get_thread_policy (pthread_attr_t *attr)
+{
+    int policy;
+    int rs = pthread_attr_getschedpolicy (attr, &policy);
+    assert (rs == 0);
 
+    switch (policy)
+    {
+        case SCHED_FIFO:
+            printf ("policy = SCHED_FIFO\n");
+            break;
+        case SCHED_RR:
+            printf ("policy = SCHED_RR");
+            break;
+        case SCHED_OTHER:
+            printf ("policy = SCHED_OTHER\n");
+            break;
+        default:
+            printf ("policy = UNKNOWN\n");
+            break;
+    }
+    return policy;
+}
+
+static void api_show_thread_priority (pthread_attr_t *attr,int policy)
+{
+    int priority = sched_get_priority_max (policy);
+    assert (priority != -1);
+    printf ("max_priority = %d\n", priority);
+    priority = sched_get_priority_min (policy);
+    assert (priority != -1);
+    printf ("min_priority = %d\n", priority);
+}
+
+static int api_get_thread_priority (pthread_attr_t *attr)
+{
+    struct sched_param param;
+    int rs = pthread_attr_getschedparam (attr, &param);
+    assert (rs == 0);
+    printf ("priority = %d\n", param.__sched_priority);
+    return param.__sched_priority;
+}
+
+static void api_set_thread_policy (pthread_attr_t *attr,int policy)
+{
+    int rs = pthread_attr_setschedpolicy (attr, policy);
+    assert (rs == 0);
+    api_get_thread_policy (attr);
+}
 int tradeEngineWriter(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
     cout << "hello world";
     int initial = 0;
@@ -197,7 +251,7 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                 break; // Connection closed cleanly by peer.
             }else {
                 //cout << "本次读取Head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head)<<endl;
-                LOG(INFO) << "本次读取head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head);
+                //LOG(INFO) << "本次读取head字节数=" + boost::lexical_cast<string>(readsize) + "," + boost::lexical_cast<string>(pkg_head);
             }
             pkg_databodylen = atoi(pkg_head);
             if (pkg_databodylen == 0) {
@@ -212,7 +266,7 @@ int tradeEngineReader(boost::shared_ptr<boost::asio::ip::tcp::socket> _socket) {
                     break; // Connection closed cleanly by peer.
                 }else {
                     //cout << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf) << endl;;
-                    LOG(INFO) << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf);
+                    //LOG(INFO) << "本次读取body字节数=" + boost::lexical_cast<string>(readsize2) + "," + boost::lexical_cast<string>(recvbuf);
                 }
                 //wprintf(L"Bytes received: %d\n", strlen(recvbuf));
                 orderInsertAmount = orderInsertAmount + 1;
@@ -286,14 +340,105 @@ void simpleAsamble(char *ch) {
     }else if (optype == 1) {//初始化infrastructure
         initInfrastructure(strlist);
     }else if (optype == 9999) {//初始化marketdata
+
+        if(strlist.size()<=2){
+            cout<<"is over;receive mkdata "<<mkAmount<<endl;
+            //thread_log_group.create_thread(&lookbacktest);
+            pthread_attr_t attr;       // 线程属性
+            struct sched_param sched;  // 调度策略
+            int rs;
+
+            /*
+             * 对线程属性初始化
+             * 初始化完成以后，pthread_attr_t 结构所包含的结构体
+             * 就是操作系统实现支持的所有线程属性的默认值
+             */
+            rs = pthread_attr_init (&attr);
+            assert (rs == 0);     // 如果 rs 不等于 0，程序 abort() 退出
+
+            /* 获得当前调度策略 */
+            int policy = api_get_thread_policy (&attr);
+
+            /* 显示当前调度策略的线程优先级范围 */
+            printf ("Show current configuration of priority\n");
+            api_show_thread_priority(&attr, policy);
+
+            /* 获取 SCHED_FIFO 策略下的线程优先级范围 */
+            printf ("show SCHED_FIFO of priority\n");
+            api_show_thread_priority(&attr, SCHED_FIFO);
+
+            /* 获取 SCHED_RR 策略下的线程优先级范围 */
+            printf ("show SCHED_RR of priority\n");
+            api_show_thread_priority(&attr, SCHED_RR);
+
+            /* 显示当前线程的优先级 */
+            printf ("show priority of current thread\n");
+            int priority = api_get_thread_priority (&attr);
+
+            /* 手动设置调度策略 */
+            //printf ("Set thread policy\n");
+
+            //printf ("set SCHED_FIFO policy\n");
+            api_set_thread_policy(&attr, SCHED_FIFO);
+
+            //printf ("set SCHED_RR policy\n");
+            //api_set_thread_policy(&attr, SCHED_RR);
+
+            /* 还原之前的策略 */
+            //printf ("Restore current policy\n");
+            //api_set_thread_policy (&attr, policy);
+
+            /*
+             * 反初始化 pthread_attr_t 结构
+             * 如果 pthread_attr_init 的实现对属性对象的内存空间是动态分配的，
+             * phread_attr_destory 就会释放该内存空间
+             */
+            //rs = pthread_attr_destroy (&attr);
+            pthread_t thread_id;
+            //pthread_attr_t attr;
+            //pthread_attr_init(&attr);
+            //pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);		///<设置线程可分离
+            //pthread_attr_setinheritsched(&thread_attr, PTHREAD_EXPLICIT_SCHED);		///<设置线程的继承策略和参数来自于schedpolicy 与 schedparam中属性中显示设置
+            //pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);				///<设置线程的与系统中所有线程进行竞争
+
+            //pthread_attr_setschedpolicy(&thread_attr, SCHED_FIFO);					///<设置线程的调试策略
+            //int max_priority = sched_get_priority_max(SCHED_FIFO);					///<取得最大的优先级
+            ////int min_priority = sched_get_priority_min(SCHED_FIFO);				///<取得最小的优先级
+
+            //struct sched_param sched_value;
+            //sched_value.sched_priority = max_priority;
+            //pthread_attr_setschedparam(&thread_attr, &sched_value);					///<设置优先级
+
+            int ret = pthread_create(&thread_id, &attr, lookbacktest,NULL);
+            //pthread_attr_destroy(&attr);
+            /*
+            int k=0;
+            //开始时间
+            boost::posix_time::ptime startTime = getCurrentTimeByBoost();
+            for(list<MarketData*>::iterator it = allMk.begin();it!=allMk.end();it++){
+                k++;
+                cout<<k<<endl;
+                MarketData* marketdatainfo=*it;
+                //开始时间
+                boost::posix_time::ptime startTime = getCurrentTimeByBoost();
+                metricProcesserForSingleThread(marketdatainfo);
+                boost::posix_time::ptime endTime = getCurrentTimeByBoost();
+                int heatBeatSecond = getTimeInterval(startTime,endTime,  "t");
+                cout<<"chuli="<<heatBeatSecond<<endl;
+            }*/
+        }
         start_process=1;
         initMarketData(strlist);
         mkAmount++;
-        if(mkAmount==121){
-            int i=10;
-            int j=i;
+
+        if(mkAmount%1000==0){
+            cout<<"receive mkdata "<<mkAmount<<endl;
+            if(mkAmount==151000){
+                int i = 0;
+                int j=i;
+            }
         }
-        cout<<"receive mkdata "<<mkAmount<<endl;
+
     }
 }
 

@@ -17,6 +17,7 @@ public:
 //	TThostFtdcInstrumentIDType InstrumentID;
     //"0":long;"1":short;"3":default
     string mainDirection="3";
+    string preMainDir="3";
     bool genKLine_15S=false;
     bool genKLine_15m=false;
 	char exchangeCode[20];
@@ -43,8 +44,10 @@ public:
     double limit[2]={0,0};
     double K2=1;
     double K1=1;
+    string storageRealInfo="";
     int firstMetricVolume=2;//volume of first open
-    double firstOpenPrice;//limit price of first open
+    double firstOpenPrice=0;//limit price of first open
+    double firstOpenPriceNormal=0;//open price of one normal
     int nTickMoveSL=6;//the first adjust range.default is 3 tick.when satisfy,stop loss price will move up or down 1 tick.
     double stopLossPrice=0;//after first open,when lastPrice touch this price will trigger stop loss action.
     int stopLossPriceTick=1;//stopLossPrice=firstOpenPrice+stopLossPriceTick*tickPrice
@@ -71,6 +74,10 @@ public:
     int tonightSecs=7200;//rb from 21:00 to 23:00
     double lockFirstOpenPrice=0;//when lock,the first trade order price;maybe multipal trade
     unordered_map<string, int> stopProfitTickMap;//diff tick
+    int lockTimes=0;
+    bool surroundStopLoss=false;//if lastPrice touch lockWatchTickNums below lockFirstOpenPrice,we will surround the price when it touch the cost.
+    int rawPstStopLossTickNums=1;//outside
+    double rawStopLossPrice=0;//self compute
     ///after lock,we will start to watch when to unlock when lastPrice over (lockPrice-lockWatchTickNums*tick)(when maindriection=0)
     ///unlockPrice call drawbackPrice=minPrice-drawbackTickNums*tick
     ///drawbackTickNums=round([(lockPrice-minprice)/tick]/drawbackTickRate)
@@ -85,6 +92,7 @@ public:
     double additionMinPrice=0;//self compute.use for another grade of fbna.only set in price stage of 6 and used in stage of 7.
     bool shake=false;//
     double unlockPrice=0;
+    double unlockPL=0;//for statistic
     int gradeToProtect=1;
     int protectVolume=2;//volume of protection order
     int relockATRNums=1;//when to relock after unlock.unlockprice-relockATRNums*ATR60C*tickprice
@@ -99,6 +107,28 @@ public:
     int periodSecTwo=7;
     int stageTick=-1;
     double stageStopLossPrice=0;//when price in stage two,when to stop loss
+    int slFastAmount=0;
+    int XQNFastAmount=0;
+    int slGuavaFastAmount=0;
+    int overMATickNums=2;
+    //lookbacktest parameters
+    int lockOverFlow=0;
+    double totalLockoverFlowPL=0;
+    int unlock=0;
+    double totalUnlockPL=0;
+    int hope=0;
+    double totalHopePL=0;
+    int stageTick3=0;
+    double totalStageTick3PL=0;
+    int stageTick2=0;
+    double totalStageTick2PL=0;
+    int stageTick1=0;
+    double totalStageTick1PL=0;
+    double totalStopPL=0;
+    int protect=0;
+    double protectPL=0;
+    int emerge=0;
+    double emergePL=0;
     //############################################技术指标计算###########################################
 	vector<double> bullings;					//布林带数组
 	int bulling_window{ 20 };							//输入参数
@@ -266,6 +296,7 @@ public:
     void creat_Kline(MarketData* tickData, int current_index, vector<Kdata > &vectorKData);		//新增K线
     void update_kline(MarketData* tickData, vector<Kdata > &vectorKData,bool is_15min);
     void setPreTotalSecs(int totalDates);
+    void reInitStrategyPara();
 };
 
 

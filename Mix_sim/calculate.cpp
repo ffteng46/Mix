@@ -54,7 +54,7 @@ void calculate::MACD(vector<Strategy::Kdata> &vectorKData, int n_fast, int n_mid
         tem_slow = EWMA(vectorKData, n_slow);
 
         vectorKData[vectorKData.size() - 2].macd_diff = tem_middle - tem_slow;
-        std::cout << "fast:" << tem_middle << "| slow:" << tem_slow << endl;
+        //std::cout << "fast:" << tem_middle << "| slow:" << tem_slow << endl;
         LOG(INFO)<<"fast="+boost::lexical_cast<string>(tem_middle)+",slow="
                    +boost::lexical_cast<string>(tem_slow)+",diff="
                    +boost::lexical_cast<string>(vectorKData[vectorKData.size() - 2].macd_diff);

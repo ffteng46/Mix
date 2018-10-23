@@ -51,6 +51,8 @@ pthread_t guavaPid;
 string slLocalIP="1.1.1.145";
 string slGuavaIP="233.54.1.100";
 int slGuavaPort=30100;
+unordered_map<string, int> whichFast;
+boost::recursive_mutex unique_fast;//unique lock
 /************************market maker*/
 vector<double> mkTimeGap ;//tow marketdata time interval
 list<OrderInfo*> aggOrderList;//aggressive market maker order list
@@ -249,7 +251,9 @@ recursive_mutex g_lock_log;//log lock
 //DWORD WINAPI sendByClient(LPVOID lpparameter);          //客户端方式发送
 //DWORD WINAPI sendByServer(LPVOID lpparameter);          //客户端方式发送
 ///for test
-vector<EESMarketDepthQuoteData*> allMk;
+bool recvOK=false;
+list<MarketData*> allMk;
+MarketData** allMk2=new MarketData*[50000];
 int mkAmount=0;
 //行情锁
 boost::recursive_mutex mkdata_mtx;
@@ -258,8 +262,13 @@ void tradeinit();
 void tsocket();
 int main(){
     google::InitGoogleLogging("");
+    #ifdef DEBUG_MODE
+        google::SetStderrLogging(google::GLOG_INFO); //设置级别高于 google::INFO 的日志同时输出到屏幕
+    #else
+        google::SetStderrLogging(google::GLOG_WARNING);//设置级别高于 google::FATAL 的日志同时输出到屏幕
+    #endif
     google::SetLogDestination(google::GLOG_INFO, "./Logs");
-    //google::SetStderrLogging(2);
+    google::SetStderrLogging(2);
     google::SetLogFilenameExtension("log_");
     codeCC = new CodeConverter("gb2312","utf-8");
     //mkTimePeriod = new boost::posix_time::time_period(getCurrentTimeByBoost(),boost::posix_time::milliseconds(490));
@@ -431,6 +440,8 @@ void datainit() {
                 techCls.periodMinOne = boost::lexical_cast<int>(vec[1]);
             }else if ("periodSecOne" == vec[0]) {
                 techCls.periodSecOne = boost::lexical_cast<int>(vec[1]);
+            }else if ("rawPstStopLossTickNums" == vec[0]) {
+                techCls.rawPstStopLossTickNums = boost::lexical_cast<int>(vec[1]);
             }else if ("stopProfitTickInfo" == vec[0]) {
                 string spreadList = vec[1];
                 vector<string> tmp_splists = split(spreadList,",");
@@ -665,7 +676,8 @@ void testlist() {
 
     LOG(ERROR) << "periodMinOne=" + boost::lexical_cast<string>(techCls.periodMinOne);
     LOG(ERROR) << "periodSecOne=" + boost::lexical_cast<string>(techCls.periodSecOne);
-
+    LOG(ERROR) << "rawPstStopLossTickNums=" + boost::lexical_cast<string>(techCls.rawPstStopLossTickNums);
+    LOG(ERROR) << "rawPstStopLossTickNums=" + boost::lexical_cast<string>(techCls.rawPstStopLossTickNums);
     if(USER_ID==0){
         USER_ID=boost::lexical_cast<int>(INVESTOR_ID);
     }
@@ -693,7 +705,8 @@ void startSendMDThread(int sendtype)
     thread_log_group.create_thread(&startTCPServer);
     //startXQN();
     thread_log_group.create_thread(&startXQN);
-    thread_log_group.create_thread(boost::bind(&guava_demo::run,guavaDriver));//bind funtion run to guavaDriver instance
+    //thread_log_group.create_thread(boost::bind(&guava_demo::run,guavaDriver));//bind funtion run to guavaDriver instance
+    //thread_log_group.create_thread(&lookbacktest);//bind funtion run to guavaDriver instance
 }
 
 

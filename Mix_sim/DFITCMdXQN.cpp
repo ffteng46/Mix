@@ -21,6 +21,10 @@
 using namespace LOCK_FREE;
 extern unordered_map<string, InstrumentInfo*> instruments;			//合约信息
 extern unordered_map<string, MarketData*> instrinfo;//market data
+///for test
+extern list<MarketData*> allMk;
+extern MarketData** allMk2;
+extern bool recvOK;
 //接收缓冲区大小
 #define MAXLINE 2048
 
@@ -46,7 +50,9 @@ static void socketRecv()
 	DFITCMarketDataFieldXQN recvMarketData;//行情结构体数据
 	int n = 0;
 	memset(&recvMarketData,0,sizeof(recvMarketData));
-	while(1)
+    //
+    return;
+    while(1)
 	{
 		n = recvfrom(sockfd, &recvMarketData, MAXLINE, 0, (struct sockaddr *)&cliaddr, &len);
 		if(n < 0)
@@ -58,6 +64,7 @@ static void socketRecv()
 }
 double upperPrice=0;
 double lowerPrice=0;
+extern int mkAmount;
 void addMarketData(DFITCMarketDataFieldXQN &marketdata){
     if(upperPrice < marketdata.LastPrice){
         upperPrice = marketdata.LastPrice;
@@ -73,6 +80,18 @@ void addMarketData(DFITCMarketDataFieldXQN &marketdata){
     double tickPrice = getPriceTick(instrumentID);
 
     MarketData* marketdatainfo;
+    marketdatainfo = new MarketData();//保存当前行情数据
+    marketdatainfo->updateTime = string(marketdata.UpdateTime);
+    strcpy(marketdatainfo->updateTime_char,marketdata.UpdateTime);
+    marketdatainfo->instrumentID = instrumentID;
+    marketdatainfo->volume = volume;
+    marketdatainfo->bidPrice = marketdata.BidPrice;
+    marketdatainfo->askPrice = marketdata.AskPrice;
+    marketdatainfo->lastPrice = marketdata.LastPrice;
+    marketdatainfo->highestPrice = upperPrice;
+    marketdatainfo->lowestPrice = lowerPrice;
+    marketdatainfo->turnover = turnover;
+    /*
     unordered_map<string, MarketData*>::iterator it = instrinfo.find(instrumentID);
     if(it == instrinfo.end()){
         marketdatainfo = new MarketData();//保存当前行情数据
@@ -113,13 +132,22 @@ void addMarketData(DFITCMarketDataFieldXQN &marketdata){
             //marketdatainfo->simPrice = tmpTurnover/tmpVolume;//multiply needed in shfe
             marketdatainfo->simPrice = tmpTurnover/tmpVolume/multiply;
         }
-    }
+    }*/
+    //allMk2[mkAmount]=marketdatainfo;
+    allMk.push_back(marketdatainfo);
+return;
+    //开始时间
+    //boost::posix_time::ptime startTime = getCurrentTimeByBoost();
     metricProcesserForSingleThread(marketdatainfo);
+    //boost::posix_time::ptime endTime = getCurrentTimeByBoost();
+    //int heatBeatSecond = getTimeInterval(startTime,endTime,  "t");
+    //cout<<"chuli="<<heatBeatSecond<<endl;
+    //metricProcesserForSingleThread(marketdatainfo);
     //testQ.push(marketdatainfo);
 }
 
 
-void *XQNprintQueue(void *)
+void *XQNprintQueue(void *)//not use
 {
 	DFITCMarketDataFieldXQN recvMarketData;
 	memset(&recvMarketData,0,sizeof(recvMarketData));
